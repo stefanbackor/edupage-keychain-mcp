@@ -36,6 +36,21 @@ def test_library_failures_never_leak_text():
     assert tools.sessions['demo-school'].edu is None
 
 
+def test_unexpected_failures_are_logged_without_their_text(capsys):
+    edu = FakeEdu()
+    edu.error = OSError(5, 'secret strerror', '/Users/someone/child-name.pdf')
+    assert tools_for(('demo-school', edu)).get_timetable('Ema') == {
+        'status': 'EDUPAGE_ERROR', 'error_type': 'OSError'}
+    log = capsys.readouterr().err
+    assert log.startswith('edupage-keyring-mcp: EDUPAGE_ERROR from OSError (errno 5 EIO)\n')
+    assert 'tools.py:' in log and ' in run' in log
+    assert 'secret' not in log and 'child-name' not in log
+    crashed = tools_for(('demo-school', RuntimeError('private keyring detail')))
+    assert crashed.list_children()['unavailable_schools'][0]['status'] == 'LOCAL_ERROR'
+    log = capsys.readouterr().err
+    assert 'LOCAL_ERROR from RuntimeError' in log and 'private' not in log
+
+
 def test_schools_are_independent():
     tools = tools_for(('demo-school', FakeEdu()), ('second-school', EduPageError('NOT_SIGNED_IN')))
     assert {s['school']: s['status'] for s in tools.list_schools()['schools']} == {

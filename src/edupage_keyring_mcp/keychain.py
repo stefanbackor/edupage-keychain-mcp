@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from .errors import EduPageError
+from .errors import EduPageError, log_unexpected
 
 SERVICE = 'edupage-keyring-mcp'
 FORMAT = 2
@@ -111,13 +111,15 @@ class SessionStore:
             raise EduPageError('SESSION_CORRUPT')
         try:
             self.backend.set_password(SERVICE, account_key(session.school, label), secret)
-        except Exception:
+        except Exception as exc:
+            log_unexpected(exc, 'KEYCHAIN_WRITE_FAILED')
             raise EduPageError('KEYCHAIN_WRITE_FAILED') from None
 
     def load(self, school: str, label: str) -> SavedSession:
         try:
             secret = self.backend.get_password(SERVICE, account_key(school, label))
-        except Exception:
+        except Exception as exc:
+            log_unexpected(exc, 'KEYCHAIN_LOCKED')
             raise EduPageError('KEYCHAIN_LOCKED') from None
         if secret is None:
             raise EduPageError('NOT_SIGNED_IN')

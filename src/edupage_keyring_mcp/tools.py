@@ -17,7 +17,7 @@ from .client import SchoolSession, _fold
 from .data import (MAX_TIMELINE_DAYS, _name, event_data, grade_data, lesson_data,
                    missing_teacher_names, parse_day, parse_since, plain, recipient_matches,
                    tolerant_grades)
-from .errors import EduPageError
+from .errors import EduPageError, log_unexpected
 from .net import SchoolHttp, is_edupage_host
 
 MAX_MESSAGE_CHARS = 5000
@@ -134,6 +134,8 @@ class FullTools:
                     found = session.resolve_child(child)
                     options = session.children()
             except Exception as exc:
+                if not isinstance(exc, EduPageError):
+                    log_unexpected(exc, 'LOCAL_ERROR')
                 if school or len(candidates) == 1:
                     if isinstance(exc, EduPageError):
                         raise
@@ -169,6 +171,7 @@ class FullTools:
                     exc, (ValueError, KeyError, IndexError, AttributeError, TypeError)) else 'EDUPAGE_ERROR'
             if session is not None and code == 'AUTH_REQUIRED':
                 session.reset()
+            log_unexpected(exc, code)
             return {'status': code, 'error_type': name}
 
     def scoped(self, school: str, fn: Callable[[SchoolSession, Any], dict]) -> dict:
@@ -185,6 +188,7 @@ class FullTools:
         except EduPageError as exc:
             return {'status': exc.code, **exc.extra}
         except Exception as exc:
+            log_unexpected(exc, 'LOCAL_ERROR')
             return {'status': 'LOCAL_ERROR', 'error_type': type(exc).__name__}
 
         def go() -> dict:
@@ -205,6 +209,7 @@ class FullTools:
             except EduPageError as exc:
                 schools.append({'school': name, 'status': exc.code})
             except Exception as exc:
+                log_unexpected(exc, 'EDUPAGE_ERROR')
                 schools.append({'school': name, 'status': 'EDUPAGE_ERROR', 'error_type': type(exc).__name__})
         return {'status': 'READY', 'primary': self.primary, 'schools': schools}
 
@@ -221,6 +226,7 @@ class FullTools:
             except EduPageError as exc:
                 unavailable.append({'school': session.school, 'status': exc.code})
             except Exception as exc:
+                log_unexpected(exc, 'LOCAL_ERROR')
                 unavailable.append({'school': session.school, 'status': 'LOCAL_ERROR',
                                     'error_type': type(exc).__name__})
         return {'status': 'READY', 'children': children, 'unavailable_schools': unavailable}
@@ -672,6 +678,7 @@ class FullTools:
         except EduPageError as exc:
             return {'status': exc.code, **exc.extra}
         except Exception as exc:
+            log_unexpected(exc, 'LOCAL_ERROR')
             return {'status': 'LOCAL_ERROR', 'error_type': type(exc).__name__}
         return self.run(session, lambda: {
             'school': session.school,
