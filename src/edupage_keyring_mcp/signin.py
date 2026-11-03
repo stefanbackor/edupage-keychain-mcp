@@ -7,9 +7,19 @@ two-factor code go to EduPage only. When the browser reaches the signed-in
 account page we take EduPage's cookies from that window, prove they work
 through `SchoolHttp`, and store them in the Keychain. The window's cookies and
 storage live in memory and are discarded when Chrome closes.
+
+`BrowserSignIn` lets the running MCP server start that same `login` command in
+a child process when a session is missing or expired, so the person can sign
+in without a terminal. The child's output is read for its status code only.
 """
 from __future__ import annotations
 
+import json
+import os
+import re
+import subprocess
+import sys
+import threading
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
@@ -92,3 +102,86 @@ def sign_in(school: str, label: str, store: SessionStore | None = None,
     elif login.casefold() != label.casefold():
         result['note'] = 'EduPage reports a different login name than the one given; using EduPage\'s.'
     return result
+
+
+STATUS_CODE = re.compile(r'^[A-Z][A-Z_]{1,40}$')
+
+
+def spawn_login(school: str, label: str) -> Any:
+    """Start `edupage-keyring-mcp login SCHOOL` with the server's own Python.
+
+    stdout is piped, never inherited: the server's stdout is the MCP channel.
+    """
+    return subprocess.Popen(
+        [sys.executable, '-m', 'edupage_keyring_mcp', 'login', school],
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        env=dict(os.environ, EDUPAGE_USERNAME=label), close_fds=True)
+
+
+def login_outcome(output: bytes | str | None, returncode: int | None) -> str:
+    """The status code from the last line `login` printed; nothing else is kept."""
+    text = output.decode('utf-8', errors='replace') if isinstance(output, bytes) else (output or '')
+    lines = [line for line in text.splitlines() if line.strip()]
+    try:
+        status = json.loads(lines[-1]).get('status') if lines else None
+    except (ValueError, AttributeError):
+        status = None
+    if not isinstance(status, str) or not STATUS_CODE.match(status):
+        return 'SIGNIN_FAILED'
+    if status == 'SAVED' and returncode != 0:
+        return 'SIGNIN_FAILED'
+    return status
+
+
+class BrowserSignIn:
+    """Runs `login` in a child process, at most one per school at a time."""
+
+    def __init__(self, spawn: Callable[[str, str], Any] = spawn_login) -> None:
+        self._spawn = spawn
+        self._lock = threading.Condition()
+        self._running: dict[str, Any] = {}
+        self._outcome: dict[str, str] = {}
+
+    def running(self, school: str) -> bool:
+        with self._lock:
+            return school in self._running
+
+    def outcome(self, school: str) -> str | None:
+        """The last finished sign-in's status for a school, if any."""
+        with self._lock:
+            return self._outcome.get(school)
+
+    def wait(self, school: str, seconds: float) -> bool:
+        """Block until the school's sign-in has finished; False if still open after `seconds`."""
+        with self._lock:
+            return self._lock.wait_for(lambda: school not in self._running, timeout=seconds)
+
+    def start(self, school: str, label: str, on_exit: Callable[[], None]) -> str:
+        """Open the sign-in window; `on_exit` runs once the child has finished."""
+        with self._lock:
+            if school in self._running:
+                return 'SIGNIN_IN_PROGRESS'
+            try:
+                child = self._spawn(school, label)
+            except Exception:
+                return 'SIGNIN_START_FAILED'
+            self._running[school] = child
+            self._outcome.pop(school, None)
+        watcher = threading.Thread(target=self._watch, args=(school, child, on_exit),
+                                   name=f'signin-{school}', daemon=True)
+        watcher.start()
+        return 'SIGNIN_STARTED'
+
+    def _watch(self, school: str, child: Any, on_exit: Callable[[], None]) -> None:
+        try:
+            output, _ = child.communicate()
+            status = login_outcome(output, child.returncode)
+        except Exception:
+            status = 'SIGNIN_FAILED'
+        try:
+            on_exit()
+        finally:
+            with self._lock:
+                self._running.pop(school, None)
+                self._outcome[school] = status
+                self._lock.notify_all()

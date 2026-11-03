@@ -36,6 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     _schools_parser(serve)
     serve.add_argument('--download-host', action='append', default=[], metavar='HOST',
                        help='Extra *.edupage.org host allowed for attachment downloads.')
+    serve.add_argument('--no-browser-signin', action='store_true',
+                       help='Do not let the sign_in tool open Chrome; use the login command instead.')
 
     for name, text in [('login', 'Sign in to a school in Chrome and save the session.'),
                        ('logout', 'Delete a school\'s saved session from the Keychain.')]:
@@ -140,8 +142,10 @@ def main(argv: list[str] | None = None) -> int:
             if not all(is_edupage_host(h) for h in args.download_host):
                 raise EduPageError("HOST_NOT_ALLOWED")
             from .server import create_server
+            from .signin import BrowserSignIn
             from .tools import FullTools
-            tools = FullTools(_sessions(args, store), set(args.download_host))
+            tools = FullTools(_sessions(args, store), set(args.download_host),
+                              None if args.no_browser_signin else BrowserSignIn())
             create_server(tools).run()
         return 0
     except EduPageError as exc:

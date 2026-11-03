@@ -81,3 +81,61 @@ def test_sign_in_stores_the_login_edupage_reports(web, monkeypatch):
     assert result['status'] == 'SAVED' and result['role'] == 'parent' and 'note' in result
     saved = SessionStore(ring).load(SCHOOL, LABEL)
     assert saved.account == 'Rodic100' and saved.login == 'parent.real@example.invalid'
+
+
+class Child:
+    """A finished-on-demand stand-in for the `login` child process."""
+
+    def __init__(self, output=b'', returncode=0):
+        import threading
+        self.output, self.returncode, self.done = output, returncode, threading.Event()
+
+    def communicate(self):
+        assert self.done.wait(5)
+        return self.output, None
+
+
+@pytest.mark.parametrize('output, returncode, code', [
+    (b'Opening...\n{"status": "SAVED", "school": "x"}\n', 0, 'SAVED'),
+    (b'{"status": "SIGNIN_TIMEOUT"}\n', 1, 'SIGNIN_TIMEOUT'),
+    (b'{"status": "SAVED"}\n', 1, 'SIGNIN_FAILED'),
+    (b'{"status": "<html>page</html>"}\n', 1, 'SIGNIN_FAILED'),
+    (b'Traceback ...\n', 1, 'SIGNIN_FAILED'),
+    (b'', -9, 'SIGNIN_FAILED'),
+])
+def test_only_a_status_code_comes_back_from_login(output, returncode, code):
+    assert signin.login_outcome(output, returncode) == code
+
+
+def test_one_browser_sign_in_per_school_at_a_time():
+    started, finished = [], []
+    child = Child(b'{"status": "SAVED"}\n')
+
+    def spawn(school, label):
+        started.append((school, label))
+        return child
+    browser = signin.BrowserSignIn(spawn)
+    assert browser.start(SCHOOL, LABEL, lambda: finished.append(SCHOOL)) == 'SIGNIN_STARTED'
+    assert browser.start(SCHOOL, LABEL, lambda: None) == 'SIGNIN_IN_PROGRESS'
+    assert browser.running(SCHOOL) and started == [(SCHOOL, LABEL)]
+    assert browser.wait(SCHOOL, 0.05) is False  # still signing in
+    child.done.set()
+    assert browser.wait(SCHOOL, 5) is True
+    assert finished == [SCHOOL] and browser.outcome(SCHOOL) == 'SAVED'
+
+
+def test_a_launch_failure_is_a_code():
+    def spawn(school, label):
+        raise FileNotFoundError('/secret/path')
+    browser = signin.BrowserSignIn(spawn)
+    assert browser.start(SCHOOL, LABEL, lambda: None) == 'SIGNIN_START_FAILED'
+    assert not browser.running(SCHOOL)
+
+
+def test_the_login_child_never_shares_the_mcp_channel(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(signin.subprocess, 'Popen', lambda argv, **kw: seen.update(argv=argv, **kw))
+    signin.spawn_login(SCHOOL, LABEL)
+    assert seen['argv'][1:] == ['-m', 'edupage_keyring_mcp', 'login', SCHOOL]
+    assert seen['stdout'] == signin.subprocess.PIPE and seen['stdin'] == signin.subprocess.DEVNULL
+    assert seen['env']['EDUPAGE_USERNAME'] == LABEL and LABEL not in seen['argv']

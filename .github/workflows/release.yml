@@ -1,14 +1,16 @@
 name: Release
 
-# Push a tag like v0.1.0 to publish to PyPI and the official MCP Registry.
+# Publishing a GitHub Release (tag vX.Y.Z, notes = changelog) builds the
+# package, publishes it to PyPI and the official MCP Registry, and attaches the
+# built files to the release. Releases are made with the /release skill.
 # One-time setup:
 #   1. PyPI → Your account → Publishing → add a pending trusted publisher:
 #      project edupage-keyring-mcp, owner stefanbackor, repo edupage-keyring-mcp,
 #      workflow release.yml, environment pypi.
 #   2. GitHub repo → Settings → Environments → create "pypi".
 on:
-  push:
-    tags: ["v*"]
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -50,6 +52,21 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  release-files:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # attach the built files to the release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Attach the built files to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
 
   mcp-registry:
     needs: pypi

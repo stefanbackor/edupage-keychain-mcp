@@ -13,6 +13,7 @@ from edupage_keyring_mcp.server import create_server
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 WRITE_TOOLS = {'send_message', 'choose_meal', 'sign_off_meal', 'rate_meal'}
+LOCAL_TOOLS = {'sign_in'}  # acts on this computer only: opens a browser window
 FORBIDDEN_PARAMETERS = {'password', 'passwd', 'cookie', 'cookies', 'session', 'session_id', 'token',
                         'url', 'link', 'headers', 'username', 'login'}
 
@@ -56,14 +57,15 @@ def test_probe_output_has_no_school_content():
 def test_every_tool_is_safe_to_expose():
     server = create_server(tools_for(('demo-school', FakeEdu())))
     listed = {tool.name: tool for tool in asyncio.run(server.list_tools())}
-    assert len(listed) == 34
+    assert len(listed) == 36
     assert not [n for n in listed if 'login' in n or 'request' in n or 'session' in n]
     for name, tool in listed.items():
         assert not FORBIDDEN_PARAMETERS & set(tool.input_schema.get('properties', {})), name
         assert tool.output_schema, name
         writes = name in WRITE_TOOLS
         assert bool(tool.annotations.destructive_hint) is writes, name
-        assert bool(tool.annotations.read_only_hint) is not writes, name
+        assert bool(tool.annotations.read_only_hint) is not (writes or name in LOCAL_TOOLS), name
+    assert set(listed['sign_in'].input_schema['properties']) == {'school'}
 
 
 def test_tools_answer_over_mcp():

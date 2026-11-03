@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -453,10 +453,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "edupage-api", specifier = "==0.13.3" },
-    { name = "keyring", specifier = "==25.7.0" },
-    { name = "mcp", specifier = "==2.3.0" },
-    { name = "playwright", specifier = "==1.64.1" },
-    { name = "requests", specifier = "==2.32.5" },
+    { name = "keyring", specifier = ">=25.7.0,<26" },
+    { name = "mcp", specifier = ">=2.3.0,<3" },
+    { name = "playwright", specifier = ">=1.64.1,<2" },
+    { name = "requests", specifier = ">=2.32.5,<3" },
 ]
 
 [package.metadata.requires-dev]
