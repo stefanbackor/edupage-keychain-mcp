@@ -144,3 +144,93 @@ def test_bell_tools_guard_against_bad_data():
     assert tools.get_next_ringing_time('1990-01-01T08:00')['status'] == 'DATE_OUT_OF_RANGE'
     edu.data['zvonenia'] = []
     assert tools.get_next_ringing_time()['status'] == 'DATA_NOT_AVAILABLE'
+
+
+class Browser:
+    """Records sign-in launches instead of opening Chrome."""
+
+    def __init__(self):
+        self.started, self.active, self.last = [], set(), None
+
+    def running(self, school):
+        return school in self.active
+
+    def outcome(self, school):
+        return self.last
+
+    def wait(self, school, seconds):
+        self.waited = seconds
+        return school not in self.active
+
+    def finish(self, outcome):
+        self.on_exit()
+        self.active.clear()
+        self.last = outcome
+
+    def start(self, school, label, on_exit):
+        self.started.append(school)
+        self.active.add(school)
+        self.on_exit = on_exit
+        return 'SIGNIN_STARTED'
+
+
+def test_sign_in_opens_a_window_only_when_the_session_is_gone():
+    from conftest import school_session
+    from edupage_keyring_mcp.tools import FullTools
+    browser = Browser()
+    working = FakeEdu()
+    tools = FullTools([school_session(working, 'demo-school'),
+                       school_session(EduPageError('NOT_SIGNED_IN'), 'second-school'),
+                       school_session(EduPageError('KEYCHAIN_LOCKED'), 'third-school')], signin=browser)
+    assert tools.sign_in() == {'status': 'ALREADY_SIGNED_IN', 'school': 'demo-school'}
+    assert tools.sign_in('third-school')['status'] == 'KEYCHAIN_LOCKED'
+    assert tools.sign_in('elsewhere')['status'] == 'UNKNOWN_SCHOOL'
+    assert browser.started == []
+    result = tools.sign_in('second-school')
+    assert result['status'] == 'SIGNIN_STARTED' and 'wait_for_sign_in' in result['next']
+    assert tools.sign_in('second-school')['status'] == 'SIGNIN_IN_PROGRESS'
+    assert tools.auth_status('second-school')['signin'] == 'IN_PROGRESS'
+    assert browser.started == ['second-school']
+
+
+def test_a_finished_sign_in_drops_the_old_session():
+    from conftest import school_session
+    from edupage_keyring_mcp.tools import FullTools
+    browser = Browser()
+    session = school_session(EduPageError('SESSION_EXPIRED'))
+    tools = FullTools([session], signin=browser)
+    assert tools.sign_in()['status'] == 'SIGNIN_STARTED'
+    session.edu = object()  # whatever was connected before the new sign-in
+    browser.on_exit()
+    assert session.edu is None  # the next call loads the new session from the Keychain
+
+
+def test_without_a_browser_sign_in_is_unavailable():
+    tools = tools_for(('demo-school', EduPageError('NOT_SIGNED_IN')))
+    assert tools.sign_in() == {'status': 'SIGNIN_UNAVAILABLE', 'school': 'demo-school'}
+
+
+def test_wait_for_sign_in_reports_progress_then_the_new_session():
+    from conftest import school_session
+    from edupage_keyring_mcp.tools import FullTools
+    browser, edu = Browser(), FakeEdu()
+    session = school_session(EduPageError('SESSION_EXPIRED'))
+    tools = FullTools([session], signin=browser)
+    assert tools.sign_in()['status'] == 'SIGNIN_STARTED'
+    pending = tools.wait_for_sign_in(seconds=999)
+    assert pending['status'] == 'SIGNIN_IN_PROGRESS' and browser.waited == 50
+    session._loader = lambda name, label: school_session(edu)._loader(name, label)
+    session._opener = lambda saved: edu
+    browser.finish('SAVED')
+    done = tools.wait_for_sign_in()
+    assert done['status'] == 'READY' and done['signin'] == 'SAVED' and done['role'] == 'parent'
+
+
+def test_wait_for_sign_in_passes_on_a_failed_sign_in():
+    from conftest import school_session
+    from edupage_keyring_mcp.tools import FullTools
+    browser = Browser()
+    tools = FullTools([school_session(EduPageError('NOT_SIGNED_IN'))], signin=browser)
+    tools.sign_in()
+    browser.finish('SIGNIN_TIMEOUT')
+    assert tools.wait_for_sign_in() == {'status': 'NOT_SIGNED_IN', 'signin': 'SIGNIN_TIMEOUT'}

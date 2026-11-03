@@ -13,16 +13,17 @@ from .client import SchoolSession
 from .config import login_name, parse_schools, refuse_plaintext_secrets
 from .errors import EduPageError
 from .keychain import SessionStore, require_macos_keychain
-from .net import is_edupage_host, school_host
+from .net import is_edupage_host, school_name
 
 COMMANDS = ('serve', 'login', 'logout', 'status', 'probe')
 
 
 def _schools_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--school', action='append', default=[], metavar='NAME[=LOGIN]',
-                        help='EduPage subdomain (NAME.edupage.org). Repeat for more schools; '
+                        help='School name (NAME.edupage.org) or its EduPage address. Repeat for more schools; '
                              'NAME=LOGIN if that school uses a different EduPage login.')
-    parser.add_argument('--username', help='EduPage login name (default: $EDUPAGE_USERNAME).')
+    parser.add_argument('--username', help='Only to keep two accounts at one school apart '
+                                           '(default: $EDUPAGE_USERNAME, usually unset).')
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,12 +37,15 @@ def build_parser() -> argparse.ArgumentParser:
     _schools_parser(serve)
     serve.add_argument('--download-host', action='append', default=[], metavar='HOST',
                        help='Extra *.edupage.org host allowed for attachment downloads.')
+    serve.add_argument('--no-browser-signin', action='store_true',
+                       help='Do not let the sign_in tool open Chrome; use the login command instead.')
 
     for name, text in [('login', 'Sign in to a school in Chrome and save the session.'),
                        ('logout', 'Delete a school\'s saved session from the Keychain.')]:
         cmd = sub.add_parser(name, help=text)
-        cmd.add_argument('school')
-        cmd.add_argument('--username', help='EduPage login name (default: $EDUPAGE_USERNAME).')
+        cmd.add_argument('school', help='School name, or its EduPage address (e.g. https://myschool.edupage.org).')
+        cmd.add_argument('--username', help='Only to keep two accounts at one school apart '
+                                            '(default: $EDUPAGE_USERNAME, usually unset).')
         if name == 'login':
             cmd.add_argument('--timeout', type=int, default=600, help='Seconds to wait for sign-in.')
 
@@ -117,12 +121,12 @@ def main(argv: list[str] | None = None) -> int:
         store = SessionStore()
         if args.command == 'login':
             from .signin import sign_in
-            school_host(args.school)
+            args.school = school_name(args.school)
             print(f'Opening Chrome for {args.school}.edupage.org. Sign in there; '
                   'this window waits until EduPage shows your account.', file=sys.stderr)
             _print(sign_in(args.school, login_name(args.username), store, args.timeout))
         elif args.command == 'logout':
-            school_host(args.school)
+            args.school = school_name(args.school)
             removed = store.delete(args.school, login_name(args.username))
             _print({'status': 'REMOVED' if removed else 'NOTHING_SAVED', 'school': args.school})
         elif args.command == 'status':
@@ -140,8 +144,10 @@ def main(argv: list[str] | None = None) -> int:
             if not all(is_edupage_host(h) for h in args.download_host):
                 raise EduPageError("HOST_NOT_ALLOWED")
             from .server import create_server
+            from .signin import BrowserSignIn
             from .tools import FullTools
-            tools = FullTools(_sessions(args, store), set(args.download_host))
+            tools = FullTools(_sessions(args, store), set(args.download_host),
+                              None if args.no_browser_signin else BrowserSignIn())
             create_server(tools).run()
         return 0
     except EduPageError as exc:

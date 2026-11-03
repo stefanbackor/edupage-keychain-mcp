@@ -22,18 +22,18 @@
         {
           "type": "named",
           "name": "--school",
-          "description": "EduPage school subdomain (the part before .edupage.org). Repeat for more schools. Sign in first with `uvx edupage-keyring-mcp login <school>`.",
+          "description": "Your school: the name before .edupage.org, or its EduPage address. Repeat for more schools. Claude opens EduPage's sign-in page in Chrome when needed.",
           "isRequired": true,
           "isRepeated": true,
           "format": "string",
-          "valueHint": "school_subdomain"
+          "valueHint": "school"
         }
       ],
       "environmentVariables": [
         {
           "name": "EDUPAGE_USERNAME",
-          "description": "Your EduPage login name (a label, not a secret). The password is never configured.",
-          "isRequired": true,
+          "description": "Optional. Only to keep two EduPage accounts at the same school apart. The password is never configured.",
+          "isRequired": false,
           "isSecret": false,
           "format": "string"
         }

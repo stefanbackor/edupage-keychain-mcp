@@ -30,6 +30,30 @@ def school_host(school: str) -> str:
     return f'{school}.edupage.org'
 
 
+def school_name(value: str) -> str:
+    """What a person types or pastes → the school's short name.
+
+    Accepts `zsabc`, `ZSABC`, `zsabc.edupage.org`, or any URL on that host such
+    as `https://zsabc.edupage.org/user/`. Anything else is INVALID_SCHOOL.
+    """
+    text = str(value or '').strip()
+    if '://' in text:
+        try:
+            parts = urlsplit(text)
+            if parts.scheme not in ('http', 'https') or parts.username or parts.password or parts.port:
+                raise EduPageError('INVALID_SCHOOL')
+        except ValueError:
+            raise EduPageError('INVALID_SCHOOL') from None
+        text = parts.hostname or ''
+    else:
+        text = text.split('/', 1)[0]
+    text = text.lower()
+    if text.endswith('.edupage.org'):
+        text = text[:-len('.edupage.org')]
+    school_host(text)  # validates: one plain label, not a reserved one
+    return text
+
+
 def is_edupage_host(host: str) -> bool:
     labels = (host or '').split('.')
     return (len(labels) >= 3 and labels[-2:] == ['edupage', 'org']

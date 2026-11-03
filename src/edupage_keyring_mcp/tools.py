@@ -33,6 +33,9 @@ EVENT_TYPES = {'event', 'schoolevent', 'excursion', 'trip', 'parentsevening', 'm
 NEWS_TYPES = {'news'}
 MESSAGE_TYPES = {'sprava'}
 SESSION_FAILURES = frozenset({'AUTH_REQUIRED', 'ACCOUNT_MISMATCH', 'SESSION_EXPIRED'})
+# Statuses a fresh browser sign-in can fix.
+SIGNIN_FIXES = SESSION_FAILURES | {'NOT_SIGNED_IN', 'SESSION_CORRUPT'}
+MAX_SIGNIN_WAIT = 50  # seconds per call; stays under common MCP client request timeouts
 FILE_BUDGET = 3 * 1024 * 1024
 ALLOWED_FILES = (('application/pdf', (b'%PDF-',)), ('image/png', (b'\x89PNG\r\n\x1a\n',)),
                  ('image/jpeg', (b'\xff\xd8\xff',)), ('image/gif', (b'GIF87a', b'GIF89a')))
@@ -95,12 +98,14 @@ EXCEPTION_CODES = {
 class FullTools:
     """All edupage-api backed tools for the configured schools."""
 
-    def __init__(self, sessions: list[SchoolSession], download_hosts: set[str] | None = None) -> None:
+    def __init__(self, sessions: list[SchoolSession], download_hosts: set[str] | None = None,
+                 signin: Any = None) -> None:
         if not sessions:
             raise ValueError('at least one school')
         self.sessions = {s.school: s for s in sessions}
         self.primary = sessions[0].school
         self.download_hosts = frozenset(download_hosts or ())
+        self.signin = signin  # a signin.BrowserSignIn, or None where windows must not open
         self._inbox: dict[str, dict[str, Letter]] = {}  # school -> message id -> Letter
 
     # -- plumbing ----------------------------------------------------------
@@ -213,7 +218,62 @@ class FullTools:
         return {'status': 'READY', 'children': children, 'unavailable_schools': unavailable}
 
     def auth_status(self, school: str = '') -> dict:
-        return self.scoped(school, lambda s, edu: {'role': s.role})
+        result = self.scoped(school, lambda s, edu: {'role': s.role})
+        name = school or self.primary
+        if result['status'] != 'READY' and self.signin is not None and name in self.sessions:
+            state = 'IN_PROGRESS' if self.signin.running(name) else self.signin.outcome(name)
+            if state:
+                result['signin'] = state
+        return result
+
+    def sign_in(self, school: str = '') -> dict:
+        """Open EduPage's sign-in page in Chrome when the saved session no longer works."""
+        try:
+            session = self.school(school)
+        except EduPageError as exc:
+            return {'status': exc.code, **exc.extra}
+        name = session.school
+        if self.signin is None:
+            return {'status': 'SIGNIN_UNAVAILABLE', 'school': name}
+        if self.signin.running(name):
+            return {'status': 'SIGNIN_IN_PROGRESS', 'school': name}
+        current = self.auth_status(name)
+        if current['status'] == 'READY':
+            return {'status': 'ALREADY_SIGNED_IN', 'school': name}
+        if current['status'] not in SIGNIN_FIXES:
+            return {'status': current['status'], 'school': name}
+
+        def finished() -> None:
+            with session.lock:
+                session.reset()  # the next call loads the new session from the Keychain
+        code = self.signin.start(name, session.label, finished)
+        result: dict[str, Any] = {'status': code, 'school': name}
+        if code == 'SIGNIN_STARTED':
+            result['next'] = ('A Chrome window is open on EduPage. Tell the person to sign in there '
+                              '(including any two-factor step), then call wait_for_sign_in.')
+        return result
+
+    def wait_for_sign_in(self, school: str = '', seconds: int = 45) -> dict:
+        """Wait for a sign-in started by sign_in to finish, then report the session."""
+        try:
+            session = self.school(school)
+        except EduPageError as exc:
+            return {'status': exc.code, **exc.extra}
+        name = session.school
+        if self.signin is None:
+            return {'status': 'SIGNIN_UNAVAILABLE', 'school': name}
+        try:
+            seconds = max(1, min(int(seconds), MAX_SIGNIN_WAIT))
+        except (TypeError, ValueError):
+            seconds = 45
+        if not self.signin.wait(name, seconds):
+            return {'status': 'SIGNIN_IN_PROGRESS', 'school': name,
+                    'next': 'The person has not finished signing in yet; call wait_for_sign_in again.'}
+        result = self.auth_status(name)
+        outcome = self.signin.outcome(name)
+        if outcome:
+            result['signin'] = outcome
+        return result
 
     def user_id(self, school: str = '') -> dict:
         return self.scoped(school, lambda s, edu: {'user_id': edu.get_user_id(), 'role': s.role})

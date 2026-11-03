@@ -24,20 +24,22 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Education",
 ]
-# Exact pins on purpose: this is an application that handles a school login.
-# Upgrades go through a reviewed change to these pins and uv.lock.
+# edupage-api is pinned exactly: it wraps EduPage's undocumented endpoints, and
+# this server patches its session, so every upgrade gets a reviewed change.
+# The rest take compatible updates within their current major version.
 dependencies = [
-    "mcp==2.3.0",
     "edupage-api==0.13.3",
-    "requests==2.32.5",
-    "keyring==25.7.0",
-    "playwright==1.64.1",
+    "mcp>=2.3.0,<3",
+    "requests>=2.32.5,<3",
+    "keyring>=25.7.0,<26",
+    "playwright>=1.64.1,<2",
 ]
 
 [project.urls]
 Homepage = "https://github.com/stefanbackor/edupage-keyring-mcp"
 Repository = "https://github.com/stefanbackor/edupage-keyring-mcp"
 Issues = "https://github.com/stefanbackor/edupage-keyring-mcp/issues"
+Changelog = "https://github.com/stefanbackor/edupage-keyring-mcp/releases"
 
 [project.scripts]
 edupage-keyring-mcp = "edupage_keyring_mcp.cli:main"
