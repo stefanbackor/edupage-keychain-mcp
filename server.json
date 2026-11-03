@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.stefanbackor/edupage-keychain-mcp",
+  "title": "EduPage Keychain",
+  "description": "EduPage timetables, grades, homework and messages; session in macOS Keychain, no password.",
+  "repository": {
+    "url": "https://github.com/stefanbackor/edupage-keychain-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "edupage-keychain-mcp",
+      "version": "0.1.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "named",
+          "name": "--school",
+          "description": "EduPage school subdomain (the part before .edupage.org). Repeat for more schools. Sign in first with `uvx edupage-keychain-mcp login <school>`.",
+          "isRequired": true,
+          "isRepeated": true,
+          "format": "string",
+          "valueHint": "school_subdomain"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "EDUPAGE_USERNAME",
+          "description": "Your EduPage login name (a label, not a secret). The password is never configured.",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

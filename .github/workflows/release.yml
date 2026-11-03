@@ -1,0 +1,77 @@
+name: Release
+
+# Push a tag like v0.1.0 to publish to PyPI and the official MCP Registry.
+# One-time setup:
+#   1. PyPI → Your account → Publishing → add a pending trusted publisher:
+#      project edupage-keychain-mcp, owner stefanbackor, repo edupage-keychain-mcp,
+#      workflow release.yml, environment pypi.
+#   2. GitHub repo → Settings → Environments → create "pypi".
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: Check versions match the tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          py=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
+          init=$(grep -m1 '__version__' src/edupage_keychain_mcp/__init__.py | cut -d"'" -f2)
+          srv=$(jq -r .version server.json)
+          pkg=$(jq -r '.packages[0].version' server.json)
+          echo "tag=$tag pyproject=$py init=$init server=$srv package=$pkg"
+          test "$tag" = "$py" && test "$tag" = "$init" && test "$tag" = "$srv" && test "$tag" = "$pkg"
+      - run: uv sync --locked
+      - run: uv run pytest -q
+      - run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # PyPI trusted publishing, no stored token
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  mcp-registry:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # GitHub OIDC login for the io.github.stefanbackor namespace
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
+      - name: Wait for the PyPI release to be visible
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 30); do
+            curl -fsS "https://pypi.org/pypi/edupage-keychain-mcp/$version/json" >/dev/null && exit 0
+            sleep 10
+          done
+          exit 1
+      - name: Publish
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
