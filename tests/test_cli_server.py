@@ -99,10 +99,13 @@ def test_release_metadata_agrees():
 
 def test_bundle_manifest_lists_every_tool():
     server = create_server(tools_for(('demo-school', FakeEdu())))
-    served = {tool.name for tool in asyncio.run(server.list_tools())}
+    served = {tool.name: tool.description for tool in asyncio.run(server.list_tools())}
     bundle = json.loads((ROOT / 'manifest.json').read_text())
-    assert {tool['name'] for tool in bundle['tools']} == served
+    assert {tool['name']: tool['description'] for tool in bundle['tools']} == served
     assert (ROOT / bundle['server']['entry_point']).is_file()
+    tomllib = pytest.importorskip('tomllib')
+    project = tomllib.loads((ROOT / 'pyproject.toml').read_text())['project']
+    assert bundle['compatibility']['runtimes']['python'] == project['requires-python']
 
 
 def test_every_source_file_carries_the_license_tag():

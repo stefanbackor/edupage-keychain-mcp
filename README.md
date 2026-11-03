@@ -35,8 +35,9 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
    (`first, second`); the first is the default. Two accounts at one school:
    `myschool=teacher` (see [Options](#options)).
 
-You need macOS and Google Chrome; Claude Desktop brings its own Python. The
-extension runs on your Mac like any local MCP server, with the same Keychain
+You need macOS, Google Chrome and [uv](https://docs.astral.sh/uv/)
+(`brew install uv`); the extension uses uv to set up its Python and
+dependencies on first start. The extension runs on your Mac like any local MCP server, with the same Keychain
 sessions. Then go on with [Ask something](#ask-something).
 
 > **Updates are manual.** The extension does not update itself. To get a new
@@ -122,7 +123,8 @@ macOS Keychain, and Claude answers. If macOS asks whether Python may use the
 Keychain, choose **Always Allow**.
 
 Prefer to sign in before connecting a client? Run
-`uvx edupage-keyring-mcp login myschool`.
+`uvx edupage-keyring-mcp login myschool` (this works for the Claude Desktop
+extension too: both use the same Keychain session).
 
 ### Options
 
@@ -131,8 +133,9 @@ The Claude Desktop extension has only the School field, so of these it takes
 several schools and account labels, written in that field.
 
 - **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`,
-  or separate them with commas: `"--school", "first,second"`. The first is the default. A school without a saved session reports
-  `AUTH_REQUIRED` and does not affect the others.
+  or separate them with commas: `"--school", "first,second"`. The first is
+  the default. A school without a saved session reports `AUTH_REQUIRED` and
+  does not affect the others.
 - **Two accounts at one school** (say, as a parent and as a teacher): give each
   its own label, for example `"--school", "myschool=teacher"`, and sign in to each
   once. The label only names its Keychain entry.
@@ -175,7 +178,9 @@ edupage-keyring-mcp status --school NAME [...]
 edupage-keyring-mcp probe --school NAME [...]   # every read tool once; statuses and counts only
 ```
 
-Run each with `uvx edupage-keyring-mcp@latest ...`. `logout` removes the local
+Run each with `uvx edupage-keyring-mcp@latest ...`, also when you use the
+Claude Desktop extension: the commands work on the same Keychain sessions.
+`logout` removes the local
 session only; EduPage itself is not logged out. `probe` is handy when reporting
 a problem: its output contains no school data.
 
@@ -264,7 +269,8 @@ These are marked `destructiveHint`; clients such as Claude Desktop ask before ea
   window only when the saved session is missing or expired, at most one per
   school at a time, and returns only that command's status code. The window
   shows EduPage's real login page, so the most a misbehaving model can do is
-  open it. Turn it off with `--no-browser-signin`.
+  open it. Turn it off with `--no-browser-signin`; the Claude Desktop
+  extension has no such setting, so use the uvx install if you need it.
 - **Keychain only.** On anything but the macOS Keychain backend the server
   refuses to run, so sessions never land in a plaintext keyring file.
 - **Confined network.** `edupage-api` gets a replacement session that allows

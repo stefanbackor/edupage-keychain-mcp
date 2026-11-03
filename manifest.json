@@ -48,27 +48,27 @@
   "tools": [
     {
       "name": "auth_status",
-      "description": "Check that the saved Keychain session still works."
+      "description": "Check that the saved Keychain session still works. If not, call sign_in; `signin` shows a sign-in in progress or its last result."
     },
     {
       "name": "sign_in",
-      "description": "Open EduPage's own sign-in page in a Chrome window on this computer when the session is missing or expired."
+      "description": "Open EduPage's own sign-in page in a Chrome window on this computer when the session is missing or expired. The person types their password there; it never passes through this tool. Returns at once; then call wait_for_sign_in."
     },
     {
       "name": "wait_for_sign_in",
-      "description": "Wait up to `seconds` (max 50) for the Chrome sign-in started by sign_in to finish."
+      "description": "Wait up to `seconds` (max 50) for the Chrome sign-in started by sign_in to finish. Returns READY when the new session works, SIGNIN_IN_PROGRESS if the person is still signing in (call again), or the failure code."
     },
     {
       "name": "list_messages",
-      "description": "Messages since a date (up to 90 days back, default 30): id, sender, snippet, number of files."
+      "description": "Messages since a date (up to 90 days back, default 30): id, sender, snippet, number of files. Open one with get_message."
     },
     {
       "name": "get_message",
-      "description": "Full text and attached files of a message returned by list_messages."
+      "description": "Full text and attached files of a message returned by list_messages. Reading sends no read receipt."
     },
     {
       "name": "get_attachment",
-      "description": "One file attached to a message (PDF, PNG, JPEG or GIF, up to 3 MB), base64."
+      "description": "One file attached to a message (PDF, PNG, JPEG or GIF, up to 3 MB), base64. `file` comes from get_message."
     },
     {
       "name": "list_schools",
@@ -76,7 +76,7 @@
     },
     {
       "name": "list_children",
-      "description": "List the children this account can see, with name, class and ref."
+      "description": "List the children this account can see, with name, class and ref. Use the name or ref as `child` in other tools."
     },
     {
       "name": "user_id",
@@ -120,43 +120,43 @@
     },
     {
       "name": "get_grades",
-      "description": "A child's grades; optionally a past term with year (e.g."
+      "description": "A child's grades; optionally a past term with year (e.g. 2025) and term FIRST|SECOND."
     },
     {
       "name": "get_notifications",
-      "description": "Timeline items since a date (max 90 days back, default 30)."
+      "description": "Timeline items since a date (max 90 days back, default 30). Optional `child` limits to that child; `types` is a comma list of EduPage types (e.g. homework,znamka)."
     },
     {
       "name": "get_homework",
-      "description": "Homework with title, subject and due date."
+      "description": "Homework with title, subject and due date. `since` is YYYY-MM-DD, max 90 days back (default 30); `child` limits to one child."
     },
     {
       "name": "get_assignments",
-      "description": "Homework, tests and exams."
+      "description": "Homework, tests and exams. `since` is YYYY-MM-DD, max 90 days back (default 30); `child` limits to one child."
     },
     {
       "name": "get_absences",
-      "description": "Absences, excuses and arrival/departure scans."
+      "description": "Absences, excuses and arrival/departure scans. `since` is YYYY-MM-DD, max 90 days back (default 30); `child` limits to one child."
     },
     {
       "name": "get_upcoming_events",
-      "description": "School events, trips, meetings, holidays and tests announced as events."
+      "description": "School events, trips, meetings, holidays and tests announced as events. `since` is YYYY-MM-DD, max 90 days back (default 30); `child` limits to one child."
     },
     {
       "name": "get_news",
-      "description": "School news posts."
+      "description": "School news posts. `since` is YYYY-MM-DD, max 90 days back (default 30); `child` limits to one child."
     },
     {
       "name": "get_meals",
-      "description": "A child's meal menu and order for a date."
+      "description": "A child's meal menu and order for a date. Returns MEALS_NOT_AVAILABLE if the school has no canteen module."
     },
     {
       "name": "choose_meal",
-      "description": "ORDER a meal for a child."
+      "description": "ORDER a meal for a child. meal_type: snack|lunch|afternoon_snack; number: 1-based menu (1=A)."
     },
     {
       "name": "sign_off_meal",
-      "description": "CANCEL a child's meal for a date."
+      "description": "CANCEL a child's meal for a date. meal_type: snack|lunch|afternoon_snack."
     },
     {
       "name": "rate_meal",
@@ -164,7 +164,7 @@
     },
     {
       "name": "send_message",
-      "description": "SEND an EduPage message as this account."
+      "description": "SEND an EduPage message as this account. recipient: one ID like Teacher123 (from get_teachers)."
     },
     {
       "name": "get_students",
