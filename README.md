@@ -35,9 +35,9 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
    (`first, second`); the first is the default. Two accounts at one school:
    `myschool=teacher` (see [Options](#options)).
 
-You need macOS, Google Chrome and [uv](https://docs.astral.sh/uv/)
-(`brew install uv`); the extension uses uv to set up its Python and
-dependencies on first start. The extension runs on your Mac like any local MCP server, with the same Keychain
+You need macOS and Google Chrome. Nothing else to install: when the extension
+is installed, Claude Desktop downloads its own copy of uv, which sets up Python
+and the extension's dependencies. The extension runs on your Mac like any local MCP server, with the same Keychain
 sessions. Then go on with [Ask something](#ask-something).
 
 > **Updates are manual.** The extension does not update itself. To get a new
