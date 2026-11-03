@@ -244,8 +244,16 @@ With `child` set, items addressed to a sibling are left out.
 
 ### Meals
 
-`get_meals`: a child's menu, allergens and current order, or
-`MEALS_NOT_AVAILABLE` when the school has no canteen module.
+`get_meals` returns a child's menus for a day (dishes,
+allergens, portion weights), serving times, the current order and which menus
+can be picked. It returns `MEALS_NOT_AVAILABLE` when the school has no canteen
+module. The server reads the school's `/menu/` page directly, because
+edupage-api 0.13.3 can't parse the page's current format.
+
+`choose_meal`, `sign_off_meal` and `rate_meal` still go through edupage-api.
+Until a release of it reads the current page, they send nothing and return
+`MEAL_ACTIONS_UNAVAILABLE` with a short explanation; order, cancel and rate in
+EduPage itself.
 
 ### Actions
 

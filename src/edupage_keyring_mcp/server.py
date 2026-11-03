@@ -18,6 +18,8 @@ INSTRUCTIONS = (
     'Call list_children to learn the children; timeline items list for_children. '
     'send_message, choose_meal, sign_off_meal and rate_meal act on the real '
     'account: use them only for an action the person explicitly asked for. '
+    'If a meal action returns MEAL_ACTIONS_UNAVAILABLE, nothing was changed: tell the '
+    'person it is temporarily unavailable and to use EduPage itself. '
     'If a tool returns AUTH_REQUIRED, SESSION_EXPIRED or NOT_SIGNED_IN, call sign_in '
     'for that school, tell the person to sign in in the Chrome window that opens, '
     'then call wait_for_sign_in (repeat while it returns SIGNIN_IN_PROGRESS) and '
@@ -167,7 +169,7 @@ def register_tools(server: 'MCPServer', tools: FullTools) -> None:
 
     @tool(read)
     def get_meals(child: str = '', date: str = '', school: str = '') -> dict[str, Any]:
-        """A child's meal menu and order for a date. Returns MEALS_NOT_AVAILABLE if the school has no canteen module."""
+        """A child's menus, allergens and current order for a date. Returns MEALS_NOT_AVAILABLE if the school has no canteen module."""
         return tools.get_meals(child, date, school)
 
     @tool(write)
