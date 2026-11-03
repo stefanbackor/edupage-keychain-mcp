@@ -12,7 +12,7 @@ from . import __version__
 from .client import SchoolSession
 from .config import login_name, parse_schools, refuse_plaintext_secrets
 from .errors import EduPageError
-from .keychain import SessionStore, open_credential_store
+from .credential_store import SessionStore, open_credential_store
 from .net import is_edupage_host, school_name
 
 COMMANDS = ('serve', 'login', 'logout', 'status', 'probe')
@@ -124,7 +124,8 @@ def main(argv: list[str] | None = None) -> int:
             args.school = school_name(args.school)
             print(f'Opening Chrome for {args.school}.edupage.org. Sign in there; '
                   'this window waits until EduPage shows your account.', file=sys.stderr)
-            _print(sign_in(args.school, login_name(args.username), store, args.timeout))
+            _print(sign_in(args.school, login_name(args.username), store=store,
+                           wait_seconds=args.timeout))
         elif args.command == 'logout':
             args.school = school_name(args.school)
             removed = store.delete(args.school, login_name(args.username))
