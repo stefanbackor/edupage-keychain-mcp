@@ -12,7 +12,7 @@ uv sync --locked
 uv run pytest
 ```
 
-Tests use synthetic data only and never touch the network or the Keychain.
+Tests use synthetic data only and never touch the network or the Credential Store.
 
 ## Running your checkout in a client
 
@@ -34,6 +34,12 @@ Desktop:
 Use `which uv` for `command`, and quit and reopen the client (⌘Q) after code
 changes. The checkout runs its own Python, so macOS asks once more whether it
 may use the Keychain; choose **Always Allow**.
+
+On Windows, set `command` to the full path from `where uv` (for example
+`C:\\Users\\you\\.local\\bin\\uv.exe`) and `--directory` to the Windows path of
+the checkout. After code changes, quit Claude Desktop from the system tray and
+reopen it. The Saved Session goes to Windows Credential Manager without a
+prompt; see [Windows (beta)](README.md#windows-beta) in the README.
 
 To try the sign-in flow, run `uv run edupage-keyring-mcp logout myschool` and
 ask Claude something about school.

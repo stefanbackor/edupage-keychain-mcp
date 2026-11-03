@@ -4,8 +4,8 @@
 The person signs in on the school's EduPage site in an off-the-record Chrome
 window (Playwright with the installed Google Chrome). Their password and
 two-factor code go to EduPage only. When the browser reaches the signed-in
-account page we take EduPage's cookies from that window, prove they work
-through `SchoolHttp`, and store them in the Keychain. The window's cookies and
+account page we take EduPage's session cookie (`PHPSESSID`, the only one it
+needs) from that window, prove it works through `SchoolHttp`, and store it. The window's cookies and
 storage live in memory and are discarded when Chrome closes.
 
 `BrowserSignIn` lets the running MCP server start that same `login` command in
@@ -25,10 +25,11 @@ from urllib.parse import urlsplit
 
 from .client import fetch_userhome, open_edupage, reported_login
 from .errors import EduPageError
-from .keychain import Cookie, SavedSession, SessionStore, parse_cookie, session_cookies
+from .credential_store import Cookie, SavedSession, SessionStore, parse_cookie, session_cookies
 from .net import school_host
 
 ACCOUNT_PAGES = ('/user', '/timeline', '/dashboard')
+SESSION_COOKIE = 'PHPSESSID'
 
 
 def _signed_in(host: str) -> Callable[[str], bool]:
@@ -38,9 +39,12 @@ def _signed_in(host: str) -> Callable[[str], bool]:
     return check
 
 
-def capture_cookies(school: str, wait_seconds: int = 600,
-                    playwright: Callable[[], Any] | None = None) -> list[Cookie]:
-    """Show EduPage in Chrome and return its cookies once the person is signed in."""
+def capture_session_cookie(school: str, wait_seconds: int = 600,
+                           playwright: Callable[[], Any] | None = None) -> Cookie:
+    """Show EduPage in Chrome and return the school's session cookie once the person is signed in.
+
+    Raises SCHEMA_CHANGED when the window holds no `PHPSESSID` for the school host.
+    """
     host = school_host(school)
     if playwright is None:
         try:
@@ -69,21 +73,23 @@ def capture_cookies(school: str, wait_seconds: int = 600,
                 pass
     mine = []
     for c in jar:
-        if str(c.get('domain', '')).lstrip('.') not in (host, 'edupage.org'):
-            continue
+        if c.get('name') != SESSION_COOKIE or str(c.get('domain', '')).lstrip('.') != host:
+            continue  # EduPage needs nothing else; tracking and device cookies stay behind
         try:
             mine.append(parse_cookie(c.get('name'), c.get('value'), c.get('domain'),
                                      c.get('path', '/'), c.get('expires', -1)))
         except EduPageError:
-            continue  # an odd tracking cookie must not spoil the sign-in
-    return session_cookies(host, mine)
+            continue
+    if not mine:
+        raise EduPageError('SCHEMA_CHANGED')  # EduPage no longer issues its session cookie
+    return session_cookies(host, mine)[0]
 
 
-def sign_in(school: str, label: str = '', store: SessionStore | None = None,
-            wait_seconds: int = 600) -> dict:
+def sign_in(school: str, label: str = '', *, store: SessionStore,
+            wait_seconds: int = 600, playwright: Callable[[], Any] | None = None) -> dict:
     """Capture a browser session, check it against EduPage, then save it."""
-    cookies = tuple(capture_cookies(school, wait_seconds))
-    trial = SavedSession(school, account='', login=label, cookies=cookies)
+    cookie = capture_session_cookie(school, wait_seconds, playwright)
+    trial = SavedSession(school, account='', login=label, cookies=(cookie,))
     edu = open_edupage(trial)
     try:
         page = fetch_userhome(edu, school)
@@ -91,7 +97,7 @@ def sign_in(school: str, label: str = '', store: SessionStore | None = None,
         login = reported_login(page, school) or label
     finally:
         edu.session.close()
-    (store or SessionStore()).save(label, SavedSession(school, account, login, cookies))
+    store.save(label, SavedSession(school, account, login, (cookie,)))
     role = ('parent' if account.startswith('Rodic') else
             'student' if account.startswith('Student') else 'teacher')
     return {'status': 'SAVED', 'school': school, 'role': role}

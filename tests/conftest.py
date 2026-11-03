@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Shared fixtures. All data is invented; no test touches the network or the Keychain."""
+"""Shared fixtures. All data is invented; no test touches the network or the Credential Store."""
 from __future__ import annotations
 
 import io
@@ -11,7 +11,7 @@ import pytest
 import requests
 
 from edupage_keyring_mcp.client import SchoolSession
-from edupage_keyring_mcp.keychain import Cookie, SavedSession
+from edupage_keyring_mcp.credential_store import Cookie, SavedSession
 from edupage_keyring_mcp.tools import FullTools
 
 SCHOOL = 'demo-school'

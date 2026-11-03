@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""edupage-api clients opened from saved Keychain sessions, one per school."""
+"""edupage-api clients opened from Saved Sessions in the Credential Store, one per school."""
 from __future__ import annotations
 
 import html
@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 import requests
 
 from .errors import EduPageError
-from .keychain import SavedSession, session_cookies
+from .credential_store import SavedSession, session_cookies
 from .net import SchoolHttp, school_host
 
 ACCOUNT_ROW = re.compile(r'data-rowid="edupage;([^";]+);([^";]+);[^"]*"')
@@ -99,7 +99,7 @@ _fold = fold  # used by sibling modules
 class SchoolSession:
     """A lazily opened edupage-api client for one school, guarded by one lock.
 
-    `label` names the Keychain entry when one school has several accounts; it
+    `label` names the Credential Store entry when one school has several accounts; it
     is empty for the usual one account per school.
     """
 

@@ -4,8 +4,8 @@ import pytest
 from conftest import HOST, LABEL, SCHOOL, FakeEdu, account_page, reply
 from edupage_keyring_mcp import signin
 from edupage_keyring_mcp.errors import EduPageError
-from edupage_keyring_mcp.keychain import Cookie, SessionStore
-from test_keychain import MemoryKeyring
+from edupage_keyring_mcp.credential_store import Cookie, SessionStore
+from test_credential_store import MemoryCredentialStore
 
 
 class Chrome:
@@ -53,15 +53,38 @@ class Chrome:
         self.closed = True
 
 
-def test_cookies_are_taken_only_after_sign_in_and_only_for_edupage():
+def jar_cookie(name, value, domain=HOST):
+    return {'name': name, 'value': value, 'domain': domain, 'path': '/', 'expires': -1}
+
+
+def test_the_session_cookie_is_taken_only_after_sign_in_and_only_for_the_school():
     jar = [{'name': 'PHPSESSID', 'value': 'abc', 'domain': HOST, 'path': '/', 'expires': -1, 'httpOnly': True},
-           {'name': 'lang', 'value': 'sk', 'domain': '.edupage.org', 'path': '/', 'expires': -1},
-           {'name': '_ga', 'value': '1', 'domain': '.google.com', 'path': '/', 'expires': -1},
-           {'name': 'odd', 'value': 'bell\x07', 'domain': HOST, 'path': '/', 'expires': -1}]
+           jar_cookie('lang', 'sk', '.edupage.org'),
+           jar_cookie('_ga', '1', '.google.com'),
+           jar_cookie('odd', 'bell\x07')]
     chrome = Chrome(f'https://{HOST}/user/', jar)
-    cookies = signin.capture_cookies(SCHOOL, 60, chrome)
-    assert [c.name for c in cookies] == ['PHPSESSID', 'lang']
+    assert signin.capture_session_cookie(SCHOOL, 60, chrome) == Cookie('PHPSESSID', 'abc', HOST)
     assert chrome.visited == [f'https://{HOST}/'] and chrome.closed
+
+
+def test_only_the_session_cookie_is_saved(web):
+    jar = [jar_cookie('edusrs', 's1'), jar_cookie('PHPSESSID', 'abc'), jar_cookie('egdid', 'd1', '.edupage.org'),
+           jar_cookie('hsid', 'h1'), jar_cookie('erfp', 'r1'),
+           jar_cookie('PHPSESSID', 'elsewhere', 'other.edupage.org')]
+    web.routes[f'https://{HOST}/user/'] = lambda r: reply(r, 200, account_page())
+    ring = MemoryCredentialStore()
+    signin.sign_in(SCHOOL, store=SessionStore(ring), playwright=Chrome(f'https://{HOST}/user/', jar))
+    assert SessionStore(ring).load(SCHOOL, '').cookies == (Cookie('PHPSESSID', 'abc', HOST),)
+
+
+def test_a_window_without_the_session_cookie_saves_nothing(web):
+    jar = [jar_cookie('edusrs', 's1'), jar_cookie('hsid', 'h1'), jar_cookie('erfp', 'r1'),
+           jar_cookie('PHPSESSID', 'shared', '.edupage.org'),
+           jar_cookie('PHPSESSID', 'elsewhere', 'other.edupage.org')]
+    ring = MemoryCredentialStore()
+    with pytest.raises(EduPageError, match='^SCHEMA_CHANGED$'):
+        signin.sign_in(SCHOOL, store=SessionStore(ring), playwright=Chrome(f'https://{HOST}/user/', jar))
+    assert ring.secrets == {}
 
 
 @pytest.mark.parametrize('failure, code', [(type('TimeoutError', (Exception,), {})(), 'SIGNIN_TIMEOUT'),
@@ -69,15 +92,15 @@ def test_cookies_are_taken_only_after_sign_in_and_only_for_edupage():
 def test_browser_problems_become_codes(failure, code):
     chrome = Chrome('', [], fail=failure)
     with pytest.raises(EduPageError, match=f'^{code}$'):
-        signin.capture_cookies(SCHOOL, 60, chrome)
+        signin.capture_session_cookie(SCHOOL, 60, chrome)
     assert chrome.closed
 
 
-def test_sign_in_stores_the_login_edupage_reports(web, monkeypatch):
-    monkeypatch.setattr(signin, 'capture_cookies', lambda school, wait: [Cookie('PHPSESSID', 'abc', HOST)])
+def test_sign_in_stores_the_login_edupage_reports(web):
+    chrome = Chrome(f'https://{HOST}/user/', [jar_cookie('PHPSESSID', 'abc')])
     web.routes[f'https://{HOST}/user/'] = lambda r: reply(r, 200, account_page(login='parent.real@example.invalid'))
-    ring = MemoryKeyring()
-    result = signin.sign_in(SCHOOL, store=SessionStore(ring))
+    ring = MemoryCredentialStore()
+    result = signin.sign_in(SCHOOL, store=SessionStore(ring), playwright=chrome)
     assert result == {'status': 'SAVED', 'school': SCHOOL, 'role': 'parent'}
     saved = SessionStore(ring).load(SCHOOL, '')
     assert saved.account == 'Rodic100' and saved.login == 'parent.real@example.invalid'
@@ -141,4 +164,4 @@ def test_the_login_child_never_shares_the_mcp_channel(monkeypatch):
     assert seen['env']['EDUPAGE_USERNAME'] == LABEL and LABEL not in seen['argv']
     monkeypatch.setenv('EDUPAGE_USERNAME', 'someone@example.invalid')
     signin.spawn_login(SCHOOL, '')
-    assert 'EDUPAGE_USERNAME' not in seen['env']  # the child uses the same Keychain entry
+    assert 'EDUPAGE_USERNAME' not in seen['env']  # the child uses the same Credential Store entry

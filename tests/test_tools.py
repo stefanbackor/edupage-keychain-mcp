@@ -197,9 +197,9 @@ def test_sign_in_opens_a_window_only_when_the_session_is_gone():
     working = FakeEdu()
     tools = FullTools([school_session(working, 'demo-school'),
                        school_session(EduPageError('NOT_SIGNED_IN'), 'second-school'),
-                       school_session(EduPageError('KEYCHAIN_LOCKED'), 'third-school')], signin=browser)
+                       school_session(EduPageError('CREDENTIAL_STORE_LOCKED'), 'third-school')], signin=browser)
     assert tools.sign_in() == {'status': 'ALREADY_SIGNED_IN', 'school': 'demo-school'}
-    assert tools.sign_in('third-school')['status'] == 'KEYCHAIN_LOCKED'
+    assert tools.sign_in('third-school')['status'] == 'CREDENTIAL_STORE_LOCKED'
     assert tools.sign_in('elsewhere')['status'] == 'UNKNOWN_SCHOOL'
     assert browser.started == []
     result = tools.sign_in('second-school')
@@ -218,7 +218,7 @@ def test_a_finished_sign_in_drops_the_old_session():
     assert tools.sign_in()['status'] == 'SIGNIN_STARTED'
     session.edu = object()  # whatever was connected before the new sign-in
     browser.on_exit()
-    assert session.edu is None  # the next call loads the new session from the Keychain
+    assert session.edu is None  # the next call loads the new Saved Session from the Credential Store
 
 
 def test_without_a_browser_sign_in_is_unavailable():
