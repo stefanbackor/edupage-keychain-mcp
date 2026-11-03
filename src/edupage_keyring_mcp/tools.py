@@ -259,7 +259,7 @@ class FullTools:
 
         def finished() -> None:
             with session.lock:
-                session.reset()  # the next call loads the new session from the Keychain
+                session.reset()  # the next call loads the new session from the Credential Store
         code = self.signin.start(name, session.label, finished)
         result: dict[str, Any] = {'status': code, 'school': name}
         if code == 'SIGNIN_STARTED':

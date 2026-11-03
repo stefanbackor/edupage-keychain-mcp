@@ -3,8 +3,8 @@
   "name": "edupage-keyring-mcp",
   "display_name": "EduPage Keyring",
   "version": "0.4.0",
-  "description": "EduPage timetables, grades, homework and messages; session in macOS Keychain, no password.",
-  "long_description": "Lets Claude read your EduPage school account: timetables, grades, homework, tests, absences, messages, menus and more, for every child and school you have.\n\nYou sign in once per school in Chrome, on EduPage's own page, two-factor included. Only the resulting session cookies are kept, in the macOS Keychain; no password is ever stored or configured. Requires macOS and Google Chrome.\n\nNot affiliated with or endorsed by aSc Applied Software Consultants, the company that makes EduPage.",
+  "description": "EduPage timetables, grades, homework and messages; session in the OS Credential Store, no password.",
+  "long_description": "Lets Claude read your EduPage school account: timetables, grades, homework, tests, absences, messages, menus and more, for every child and school you have.\n\nYou sign in once per school in Chrome, on EduPage's own page, two-factor included. Only EduPage's session cookie is kept, in your computer's Credential Store (the macOS Keychain or Windows Credential Manager); no password is ever stored or configured. Requires macOS or Windows (Windows support is beta) and Google Chrome.\n\nNot affiliated with or endorsed by aSc Applied Software Consultants, the company that makes EduPage.",
   "author": {
     "name": "Stefan Backor",
     "url": "https://github.com/stefanbackor"
@@ -48,7 +48,7 @@
   "tools": [
     {
       "name": "auth_status",
-      "description": "Check that the saved Keychain session still works. If not, call sign_in; `signin` shows a sign-in in progress or its last result."
+      "description": "Check that the Saved Session in the Credential Store still works. If not, call sign_in; `signin` shows a sign-in in progress or its last result."
     },
     {
       "name": "sign_in",
@@ -197,7 +197,8 @@
     "timetable",
     "grades",
     "homework",
-    "keychain"
+    "keychain",
+    "credential-manager"
   ],
   "license": "GPL-3.0-or-later",
   "privacy_policies": [
@@ -205,7 +206,8 @@
   ],
   "compatibility": {
     "platforms": [
-      "darwin"
+      "darwin",
+      "win32"
     ],
     "runtimes": {
       "python": ">=3.10"

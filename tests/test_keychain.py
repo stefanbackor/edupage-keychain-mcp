@@ -155,9 +155,13 @@ def test_a_secret_over_2_kb_is_refused_when_saving():
 
 
 def test_an_older_saved_session_with_several_cookies_still_loads():
-    names = ['PHPSESSID', 'edusrs', 'egdid', 'hsid', 'erfp']
-    secret = json.dumps({'format': 2, 'school': SCHOOL, 'account': 'Rodic100', 'login': LABEL,
-                         'saved': 1, 'cookies': [[n, 'v' * 150, '.' + HOST, '/', -1] for n in names]})
+    secret = ('{"format":2,"school":"%s","account":"Rodic100","login":"%s","saved":1761955200,'
+              '"cookies":[["PHPSESSID","abc","%s","/",-1.0],["edusrs","s1","%s","/",-1.0],'
+              '["egdid","d1",".edupage.org","/",4102444800.0],["hsid","h1","%s","/",-1.0],'
+              '["erfp","r1","%s","/",-1.0]]}') % (SCHOOL, LABEL, HOST, HOST, HOST, HOST)
     ring = MemoryKeyring()
-    ring.secrets['edupage-keyring-mcp', account_key(SCHOOL, LABEL)] = secret
-    assert [c.name for c in SessionStore(ring).load(SCHOOL, LABEL).cookies] == names
+    ring.set_password('edupage-keyring-mcp', account_key(SCHOOL, LABEL), secret)
+    saved = SessionStore(ring).load(SCHOOL, LABEL)
+    assert saved.account == 'Rodic100' and saved.login == LABEL
+    assert [c.name for c in saved.cookies] == ['PHPSESSID', 'edusrs', 'egdid', 'hsid', 'erfp']
+    assert saved.cookies[2] == Cookie('egdid', 'd1', '.edupage.org', '/', 4102444800.0)

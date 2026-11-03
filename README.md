@@ -8,8 +8,9 @@ grades, homework, tests, absences, messages, menus and more, for every child
 and school you have, **without ever storing your password**.
 
 You sign in once per school in Chrome, on EduPage's own page, two-factor
-included. Only the resulting session cookies are kept, in the **macOS
-Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
+included. Only EduPage's session cookie (`PHPSESSID`) is kept, in your
+computer's **Credential Store**: the macOS Keychain, or Windows Credential
+Manager (Windows support is **beta**). Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
 ## What you can ask
 
@@ -35,10 +36,11 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
    (`first, second`); the first is the default. Two accounts at one school:
    `myschool=teacher` (see [Options](#options)).
 
-You need macOS and Google Chrome. Nothing else to install: when the extension
-is installed, Claude Desktop downloads its own copy of uv, which sets up Python
-and the extension's dependencies. The extension runs on your Mac like any
-local MCP server, with the same Keychain sessions. Then go on with
+You need macOS or Windows (**beta**, see [Windows](#windows-beta)) and Google
+Chrome. Nothing else to install: when the extension is installed, Claude
+Desktop downloads its own copy of uv, which sets up Python and the extension's
+dependencies. The extension runs on your computer like any local MCP server,
+with the same Saved Sessions in the Credential Store. Then go on with
 [Ask something](#ask-something).
 
 > **Updates are manual.** The extension does not update itself. To get a new
@@ -50,20 +52,24 @@ local MCP server, with the same Keychain sessions. Then go on with
 
 #### 1. Get the requirements
 
-You need macOS, Google Chrome, and [uv](https://docs.astral.sh/uv/):
+You need macOS or Windows (**beta**), Google Chrome, and
+[uv](https://docs.astral.sh/uv/):
 
 ```sh
 brew install uv          # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+
+On Windows, see [Windows](#windows-beta).
 
 Nothing else to install: `uvx` downloads this server from PyPI and runs it in
 its own isolated environment.
 
 #### 2. Connect your client
 
-Desktop apps need the full path to `uvx`; get it with `which uvx`. It is usually
-`/opt/homebrew/bin/uvx` (Homebrew) or `/Users/YOU/.local/bin/uvx` (installer
-script). Replace `myschool` with your school: the name before `.edupage.org`,
+Desktop apps need the full path to `uvx`; get it with `which uvx` (Windows:
+`where uvx`). It is usually `/opt/homebrew/bin/uvx` (Homebrew),
+`/Users/YOU/.local/bin/uvx` (installer script) or
+`C:\Users\YOU\.local\bin\uvx.exe` (Windows). Replace `myschool` with your school: the name before `.edupage.org`,
 or simply your school's whole EduPage address, such as
 `https://myschool.edupage.org`.
 
@@ -81,7 +87,8 @@ versions: **Settings → Developer → Edit Config**) and add:
 }
 ```
 
-Quit Claude Desktop (⌘Q) and reopen it.
+Quit Claude Desktop (⌘Q on macOS; on Windows, quit it from the system tray)
+and reopen it.
 
 **Claude Code:**
 
@@ -120,12 +127,12 @@ Ask Claude about school, for example "What's on the timetable tomorrow?". The
 first time, Claude opens your school's EduPage in a Chrome window (Claude
 Desktop asks you first). Sign in there the way you always do: password,
 two-factor or QR code. The window closes by itself, the session is saved to the
-macOS Keychain, and Claude answers. If macOS asks whether Python may use the
+Credential Store, and Claude answers. If macOS asks whether Python may use the
 Keychain, choose **Always Allow**.
 
 Prefer to sign in before connecting a client? Run
 `uvx edupage-keyring-mcp login myschool` (this works for the Claude Desktop
-extension too: both use the same Keychain session).
+extension too: both use the same Saved Session).
 
 ### Options
 
@@ -139,7 +146,7 @@ several schools and account labels, written in that field.
   does not affect the others.
 - **Two accounts at one school** (say, as a parent and as a teacher): give each
   its own label, for example `"--school", "myschool=teacher"`, and sign in to each
-  once. The label only names its Keychain entry.
+  once. The label only names its Credential Store entry.
 - **No sign-in windows from the server:** `"--no-browser-signin"`. `sign_in`
   then reports `SIGNIN_UNAVAILABLE`, and you sign in with `login` in a terminal
   (see [Command line](#command-line)).
@@ -156,6 +163,23 @@ several schools and account labels, written in that field.
   and install it over the old one.
 
 What changed is on the [releases page](https://github.com/stefanbackor/edupage-keyring-mcp/releases).
+
+### Windows (beta)
+
+Windows support is **beta** until someone has done a full sign-in on a real
+Windows machine; please [report](https://github.com/stefanbackor/edupage-keyring-mcp/issues)
+how it goes.
+
+- **Google Chrome** must be installed; sign-in opens it.
+- **Claude Desktop extension:** nothing else to install, as on macOS.
+- **uvx:** install [uv](https://docs.astral.sh/uv/getting-started/installation/)
+  (for example `winget install --id=astral-sh.uv -e`, or
+  `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`).
+  uv fetches Python itself; an existing Python 3.10 or newer works too.
+- **Where the session is kept:** Windows Credential Manager. To see or delete
+  it, open **Control Panel → Credential Manager → Windows Credentials** and
+  look for the entries under `edupage-keyring-mcp` (or run
+  `uvx edupage-keyring-mcp logout myschool`).
 
 ## Signing in again
 
@@ -180,7 +204,7 @@ edupage-keyring-mcp probe --school NAME [...]   # every read tool once; statuses
 ```
 
 Run each with `uvx edupage-keyring-mcp@latest ...`, also when you use the
-Claude Desktop extension: the commands work on the same Keychain sessions.
+Claude Desktop extension: the commands work on the same Saved Sessions.
 `logout` removes the local
 session only; EduPage itself is not logged out. `probe` is handy when reporting
 a problem: its output contains no school data.
@@ -269,8 +293,10 @@ These are marked `destructiveHint`; clients such as Claude Desktop ask before ea
 ## Security model
 
 - **No password anywhere.** It is typed only into EduPage's page in a throwaway
-  Chrome window. The Keychain item holds EduPage session cookies, the account ID
-  and the login name EduPage reports.
+  Chrome window. The Credential Store entry (a Saved Session) holds only
+  EduPage's session cookie, `PHPSESSID`, plus the account ID and the login name
+  EduPage reports. Sessions saved by older versions with more cookies keep
+  working until they expire.
   No username is needed either. The server refuses to start if any `EDUPAGE_*`
   environment variable other than the optional `EDUPAGE_USERNAME` label is set.
 - **Sign-in from the server stays local.** `sign_in` takes only a configured
@@ -280,12 +306,18 @@ These are marked `destructiveHint`; clients such as Claude Desktop ask before ea
   shows EduPage's real login page, so the most a misbehaving model can do is
   open it. Turn it off with `--no-browser-signin`; the Claude Desktop
   extension has no such setting, so use the uvx install if you need it.
-- **Keychain only.** On anything but the macOS Keychain backend the server
-  refuses to run, so sessions never land in a plaintext keyring file.
+- **OS Credential Store only.** Saved Sessions go only to the macOS Keychain
+  or Windows Credential Manager, through `keyring`'s built-in backends. With
+  any other `keyring` backend (third-party password managers, file-based
+  keyrings) or on another platform the server refuses to run with
+  `CREDENTIAL_STORE_REQUIRED`, so sessions never land in a plaintext keyring
+  file. See [ADR 0001](docs/adr/0001-os-credential-stores-only.md). On Windows
+  the entry is kept on this computer only and never roams with a domain
+  profile.
 - **Confined network.** `edupage-api` gets a replacement session that allows
   HTTPS to your configured school host only, checks every redirect hop, caps
   every response at 8 MB (attachments at 3 MB) and ignores proxy and `.netrc`
-  settings. Cookies loaded from the Keychain are validated for that host first.
+  settings. Cookies loaded from the Credential Store are validated for that host first.
 - **Narrow inputs.** No tool accepts a URL, cookie, session ID, header or
   password. Dates are ISO and window-limited. `school` only picks a configured
   school. Attachments are fetched by file id; the model never sees their URLs.
@@ -314,7 +346,7 @@ Development setup, tests and releases are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Built on [edupage-api](https://github.com/EdupageAPI/edupage-api), a community
 Python library for EduPage accounts, licensed under GPL-3.0. It does the
-EduPage requests and parsing; this project adds the Keychain sessions, browser
+EduPage requests and parsing; this project adds the Credential Store sessions, browser
 sign-in, network confinement and the MCP tools. Its version is pinned exactly,
 so a new `edupage-api` release reaches users only through a release of this
 project.
