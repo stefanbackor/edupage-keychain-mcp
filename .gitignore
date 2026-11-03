@@ -10,3 +10,4 @@ build/
 .env.*
 *.har
 storage-state*.json
+bundle/

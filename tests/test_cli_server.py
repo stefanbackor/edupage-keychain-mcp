@@ -36,6 +36,10 @@ def test_school_arguments():
             config.parse_schools(values, environ=env)
     assert config.parse_schools(['a', 'b=q@example.invalid'], environ={}) == [
         ('a', ''), ('b', 'q@example.invalid')]  # no username needed
+    assert config.parse_schools([' a , https://b.edupage.org,c=q@example.invalid,'], environ={}) == [
+        ('a', ''), ('b', ''), ('c', 'q@example.invalid')]  # the extension's one School field
+    with pytest.raises(EduPageError, match='^SCHOOL_REQUIRED$'):
+        config.parse_schools([' , '], environ={})
     with pytest.raises(EduPageError, match='^INVALID_USERNAME$'):
         config.parse_schools(['a=x\ny'], environ={})
 
@@ -88,6 +92,17 @@ def test_release_metadata_agrees():
     assert manifest['packages'][0]['identifier'] == project['name']
     assert f"mcp-name: {manifest['name']}" in (ROOT / 'README.md').read_text()
     assert len(manifest['description']) <= 100
+    bundle = json.loads((ROOT / 'manifest.json').read_text())
+    assert bundle['version'] == __version__ and bundle['name'] == project['name']
+    assert bundle['description'] == manifest['description']
+
+
+def test_bundle_manifest_lists_every_tool():
+    server = create_server(tools_for(('demo-school', FakeEdu())))
+    served = {tool.name for tool in asyncio.run(server.list_tools())}
+    bundle = json.loads((ROOT / 'manifest.json').read_text())
+    assert {tool['name'] for tool in bundle['tools']} == served
+    assert (ROOT / bundle['server']['entry_point']).is_file()
 
 
 def test_every_source_file_carries_the_license_tag():

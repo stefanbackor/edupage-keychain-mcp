@@ -1,0 +1,214 @@
+{
+  "manifest_version": "0.4",
+  "name": "edupage-keyring-mcp",
+  "display_name": "EduPage Keyring",
+  "version": "0.2.0",
+  "description": "EduPage timetables, grades, homework and messages; session in macOS Keychain, no password.",
+  "long_description": "Lets Claude read your EduPage school account: timetables, grades, homework, tests, absences, messages, menus and more, for every child and school you have.\n\nYou sign in once per school in Chrome, on EduPage's own page, two-factor included. Only the resulting session cookies are kept, in the macOS Keychain; no password is ever stored or configured. Requires macOS and Google Chrome.\n\nNot affiliated with or endorsed by aSc Applied Software Consultants, the company that makes EduPage.",
+  "author": {
+    "name": "Stefan Backor",
+    "url": "https://github.com/stefanbackor"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stefanbackor/edupage-keyring-mcp.git"
+  },
+  "homepage": "https://github.com/stefanbackor/edupage-keyring-mcp",
+  "documentation": "https://github.com/stefanbackor/edupage-keyring-mcp#readme",
+  "support": "https://github.com/stefanbackor/edupage-keyring-mcp/issues",
+  "server": {
+    "type": "uv",
+    "entry_point": "src/edupage_keyring_mcp/__main__.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "--frozen",
+        "--no-dev",
+        "--quiet",
+        "python",
+        "-m",
+        "edupage_keyring_mcp",
+        "serve",
+        "--school",
+        "${user_config.school}"
+      ]
+    }
+  },
+  "user_config": {
+    "school": {
+      "type": "string",
+      "title": "School",
+      "description": "The name before .edupage.org (myschool), or your school's EduPage address. Several schools: separate them with commas; the first is the default.",
+      "required": true
+    }
+  },
+  "tools": [
+    {
+      "name": "auth_status",
+      "description": "Check that the saved Keychain session still works."
+    },
+    {
+      "name": "sign_in",
+      "description": "Open EduPage's own sign-in page in a Chrome window on this computer when the session is missing or expired."
+    },
+    {
+      "name": "wait_for_sign_in",
+      "description": "Wait up to `seconds` (max 50) for the Chrome sign-in started by sign_in to finish."
+    },
+    {
+      "name": "list_messages",
+      "description": "Messages since a date (up to 90 days back, default 30): id, sender, snippet, number of files."
+    },
+    {
+      "name": "get_message",
+      "description": "Full text and attached files of a message returned by list_messages."
+    },
+    {
+      "name": "get_attachment",
+      "description": "One file attached to a message (PDF, PNG, JPEG or GIF, up to 3 MB), base64."
+    },
+    {
+      "name": "list_schools",
+      "description": "List configured schools with session status and account role."
+    },
+    {
+      "name": "list_children",
+      "description": "List the children this account can see, with name, class and ref."
+    },
+    {
+      "name": "user_id",
+      "description": "Return the EduPage user ID and role (parent, student, teacher) for a school."
+    },
+    {
+      "name": "school_year",
+      "description": "Return the current school year (starting year)."
+    },
+    {
+      "name": "find_student",
+      "description": "Find students in the school by (part of) their name."
+    },
+    {
+      "name": "get_timetable",
+      "description": "A child's lessons for one date (YYYY-MM-DD, default today)."
+    },
+    {
+      "name": "get_week_timetable",
+      "description": "A child's Monday-Friday lessons for the week containing `week_of` (default this week, or next week on weekends)."
+    },
+    {
+      "name": "get_timetable_for",
+      "description": "Timetable of a teacher, student, class or classroom (target_type) by its ID on a date."
+    },
+    {
+      "name": "get_periods",
+      "description": "The school's bell schedule (period start and end times)."
+    },
+    {
+      "name": "get_next_ringing_time",
+      "description": "Next bell (lesson or break) after an ISO datetime (default now)."
+    },
+    {
+      "name": "get_timetable_changes",
+      "description": "Substitutions and timetable changes for a date (default today)."
+    },
+    {
+      "name": "get_missing_teachers",
+      "description": "Teachers absent on a date (default today)."
+    },
+    {
+      "name": "get_grades",
+      "description": "A child's grades; optionally a past term with year (e.g."
+    },
+    {
+      "name": "get_notifications",
+      "description": "Timeline items since a date (max 90 days back, default 30)."
+    },
+    {
+      "name": "get_homework",
+      "description": "Homework with title, subject and due date."
+    },
+    {
+      "name": "get_assignments",
+      "description": "Homework, tests and exams."
+    },
+    {
+      "name": "get_absences",
+      "description": "Absences, excuses and arrival/departure scans."
+    },
+    {
+      "name": "get_upcoming_events",
+      "description": "School events, trips, meetings, holidays and tests announced as events."
+    },
+    {
+      "name": "get_news",
+      "description": "School news posts."
+    },
+    {
+      "name": "get_meals",
+      "description": "A child's meal menu and order for a date."
+    },
+    {
+      "name": "choose_meal",
+      "description": "ORDER a meal for a child."
+    },
+    {
+      "name": "sign_off_meal",
+      "description": "CANCEL a child's meal for a date."
+    },
+    {
+      "name": "rate_meal",
+      "description": "RATE a served lunch 1-5 for quality and quantity (meal_type must be lunch)."
+    },
+    {
+      "name": "send_message",
+      "description": "SEND an EduPage message as this account."
+    },
+    {
+      "name": "get_students",
+      "description": "Students in your class (or your children, for parents)."
+    },
+    {
+      "name": "get_all_students",
+      "description": "Short list of all students in the school."
+    },
+    {
+      "name": "get_teachers",
+      "description": "All teachers, with IDs usable for send_message."
+    },
+    {
+      "name": "get_classes",
+      "description": "All classes."
+    },
+    {
+      "name": "get_classrooms",
+      "description": "All classrooms."
+    },
+    {
+      "name": "get_subjects",
+      "description": "All subjects."
+    }
+  ],
+  "keywords": [
+    "edupage",
+    "school",
+    "timetable",
+    "grades",
+    "homework",
+    "keychain"
+  ],
+  "license": "GPL-3.0-or-later",
+  "privacy_policies": [
+    "https://www.edupage.org/privacy/"
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin"
+    ],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  }
+}

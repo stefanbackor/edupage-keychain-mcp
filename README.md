@@ -23,7 +23,27 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
 ## Install
 
-### 1. Get the requirements
+### Claude Desktop: one-click extension
+
+1. Download
+   [`edupage-keyring-mcp.mcpb`](https://github.com/stefanbackor/edupage-keyring-mcp/releases/latest/download/edupage-keyring-mcp.mcpb)
+   from the latest release.
+2. Double-click it (or drag it onto **Settings → Extensions** in Claude
+   Desktop) and choose **Install**.
+3. Enter your **School**: the name before `.edupage.org`, or your school's
+   EduPage address. Several schools: separate them with commas
+   (`first, second`); the first is the default. Two accounts at one school:
+   `myschool=teacher` (see [Options](#options)).
+
+You need macOS and Google Chrome; Claude Desktop brings its own Python. The
+extension runs on your Mac like any local MCP server, with the same Keychain
+sessions. Then go on with [Ask something](#ask-something). A new version is
+installed by downloading the new file; the extension does not update itself
+from PyPI the way `uvx ...@latest` does.
+
+### Any client: run it with uvx
+
+#### 1. Get the requirements
 
 You need macOS, Google Chrome, and [uv](https://docs.astral.sh/uv/):
 
@@ -34,7 +54,7 @@ brew install uv          # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 Nothing else to install: `uvx` downloads this server from PyPI and runs it in
 its own isolated environment.
 
-### 2. Connect your client
+#### 2. Connect your client
 
 Desktop apps need the full path to `uvx`; get it with `which uvx`. It is usually
 `/opt/homebrew/bin/uvx` (Homebrew) or `/Users/YOU/.local/bin/uvx` (installer
@@ -89,7 +109,7 @@ codex mcp add edupage -- uvx edupage-keyring-mcp@latest --school myschool
 **Any other client:** run `uvx edupage-keyring-mcp@latest --school myschool` as
 a stdio server.
 
-### 3. Ask something
+### Ask something
 
 Ask Claude about school, for example "What's on the timetable tomorrow?". The
 first time, Claude opens your school's EduPage in a Chrome window (Claude
@@ -103,10 +123,12 @@ Prefer to sign in before connecting a client? Run
 
 ### Options
 
-Add these to the `args` list (or after `--school myschool` on the command line):
+Add these to the `args` list (or after `--school myschool` on the command line).
+The Claude Desktop extension has only the School field, so of these it takes
+several schools and account labels, written in that field.
 
-- **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`.
-  The first is the default. A school without a saved session reports
+- **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`,
+  or separate them with commas: `"--school", "first,second"`. The first is the default. A school without a saved session reports
   `AUTH_REQUIRED` and does not affect the others.
 - **Two accounts at one school** (say, as a parent and as a teacher): give each
   its own label, for example `"--school", "myschool=teacher"`, and sign in to each
@@ -121,7 +143,8 @@ Add these to the `args` list (or after `--school myschool` on the command line):
 ### Updates
 
 `@latest` makes `uvx` check PyPI each time the client starts the server, so a
-new release is picked up on the next client restart. What changed is on the
+new release is picked up on the next client restart. The Claude Desktop
+extension is updated by installing the new `.mcpb` from the latest release. What changed is on the
 [releases page](https://github.com/stefanbackor/edupage-keyring-mcp/releases).
 
 ## Signing in again

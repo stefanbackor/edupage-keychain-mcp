@@ -38,6 +38,21 @@ may use the Keychain; choose **Always Allow**.
 To try the sign-in flow, run `uv run edupage-keyring-mcp logout myschool` and
 ask Claude something about school.
 
+## The Claude Desktop extension
+
+`manifest.json` describes the `.mcpb` bundle; `.mcpbignore` keeps tests and
+repo tooling out of it. The bundle carries the source, `pyproject.toml` and
+`uv.lock`, and Claude Desktop installs the locked dependencies with uv. To
+build and try one:
+
+```sh
+npx -y @anthropic-ai/mcpb@2.1.2 pack . bundle/edupage-keyring-mcp.mcpb
+open bundle/edupage-keyring-mcp.mcpb
+```
+
+A new tool must be added to `tools` in `manifest.json` too; a test checks
+that the list matches the server.
+
 ## Dependencies
 
 `edupage-api` is pinned exactly: it wraps EduPage's undocumented endpoints and
@@ -55,4 +70,4 @@ Releases are cut by the maintainer through an agent, with the `/release` skill
 in [`.claude/skills/release/`](.claude/skills/release/SKILL.md). Release notes
 live only in [GitHub Releases](https://github.com/stefanbackor/edupage-keyring-mcp/releases);
 publishing one runs `.github/workflows/release.yml`, which publishes to PyPI
-and the MCP Registry.
+and the MCP Registry and attaches `edupage-keyring-mcp.mcpb` to the release.

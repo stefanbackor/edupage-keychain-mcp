@@ -83,7 +83,7 @@ Follow the workflow run for `vNEXT` (`gh run list --workflow Release --limit 1`,
 then `gh run view <id>`) until it finishes. Then check:
 
 - `curl -fsS https://pypi.org/pypi/edupage-keyring-mcp/vNEXT/json` succeeds.
-- `gh release view vNEXT` lists the wheel and sdist.
+- `gh release view vNEXT` lists the wheel, the sdist and `edupage-keyring-mcp.mcpb`.
 - `uvx edupage-keyring-mcp@latest --version` prints `vNEXT`'s number
   (`uv cache clean edupage-keyring-mcp` first if it shows the old one).
 

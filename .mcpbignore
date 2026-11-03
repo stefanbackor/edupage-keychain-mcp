@@ -1,0 +1,18 @@
+# Files left out of the .mcpb bundle. The bundle holds the manifest, the
+# package source, pyproject.toml and uv.lock; Claude Desktop installs the
+# locked dependencies with uv.
+.venv/
+.github/
+.claude/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+dist/
+build/
+bundle/
+tests/
+CONTRIBUTING.md
+server.json
+*.har
+storage-state*.json
+.apm-local/
