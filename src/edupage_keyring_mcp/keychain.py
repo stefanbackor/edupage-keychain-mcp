@@ -5,7 +5,9 @@ A saved session is the set of EduPage cookies from one browser sign-in, plus
 the account it belongs to. There is no password field anywhere: the person
 types their password into EduPage in Chrome, never into this program.
 
-Keychain item: service `edupage-keyring-mcp`, account `<school>/<sha1 of label>`,
+Keychain item: service `edupage-keyring-mcp`, account `<school>`, or
+`<school>/<sha1 of label>` when a label tells several accounts at one school
+apart (and for sessions saved before labels became optional);
 secret = JSON {"format": 2, "account": ..., "login": ..., "cookies": [[name, value, domain, path, expires], ...]}.
 """
 from __future__ import annotations
@@ -38,7 +40,9 @@ def require_macos_keychain(backend: Any = None) -> None:
         raise EduPageError('MACOS_KEYCHAIN_REQUIRED')
 
 
-def account_key(school: str, label: str) -> str:
+def account_key(school: str, label: str = '') -> str:
+    if not label:
+        return school
     return school + '/' + hashlib.sha1(label.casefold().encode(), usedforsecurity=False).hexdigest()
 
 
@@ -85,7 +89,7 @@ def session_cookies(host: str, cookies: list[Cookie], now: float | None = None) 
 class SavedSession:
     school: str
     account: str  # EduPage user ID, e.g. Rodic123
-    login: str    # the EduPage login name exactly as EduPage reports it
+    login: str    # the login name EduPage reports, if any; informational only
     cookies: tuple[Cookie, ...]
 
 

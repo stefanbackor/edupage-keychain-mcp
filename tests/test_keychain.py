@@ -39,6 +39,18 @@ def test_saved_session_round_trip():
     assert store.delete(SCHOOL, LABEL) and not store.delete(SCHOOL, LABEL)
 
 
+def test_one_account_per_school_needs_no_label():
+    ring = MemoryKeyring()
+    store = SessionStore(ring)
+    store.save('', SAVED)
+    assert list(ring.secrets) == [('edupage-keyring-mcp', SCHOOL)]
+    assert store.load(SCHOOL, '') == SAVED
+    with pytest.raises(EduPageError, match='^NOT_SIGNED_IN$'):
+        store.load(SCHOOL, LABEL)  # a labelled entry is a different account
+    store.save(LABEL, SAVED)
+    assert store.load(SCHOOL, LABEL) == SAVED and len(ring.secrets) == 2
+
+
 def test_load_failures():
     with pytest.raises(EduPageError, match='^NOT_SIGNED_IN$'):
         SessionStore(MemoryKeyring()).load(SCHOOL, LABEL)

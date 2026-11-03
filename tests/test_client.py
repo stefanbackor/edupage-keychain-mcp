@@ -51,56 +51,52 @@ def test_library_cannot_be_redirected_off_the_school_host(web):
     assert all(url.startswith(f'https://{HOST}/') for url in web.calls)
 
 
-def test_child_switch_round_trip_against_the_real_library(web):
-    state = {'who': 'Student11'}  # left in a child's view by an earlier crash
-
-    def user(request):
-        return reply(request, 200, account_page(state['who']))
-
-    def change(request):
-        assert 'rid=edupage%3Bdemo-school%3Bparent%40example.invalid' in request.url
-        state['who'] = 'Rodic100'
-        return reply(request, 200, b'')
+def test_child_selection_against_the_real_library(web):
+    selected = []
 
     def switch(request):
-        state['who'] = 'Student12'
+        selected.append(request.url.rsplit('=', 1)[1])
         return reply(request, 200, b'OK')
 
-    web.routes.update({f'https://{HOST}/user/': user, f'https://{HOST}/login/edupageChange': change,
+    web.routes.update({f'https://{HOST}/user/': lambda r: reply(r, 200, account_page()),
                        f'https://{HOST}/login/switchchild': switch})
-    session = SchoolSession(SCHOOL, LABEL, lambda s, l: SAVED)
-    assert session.connect().get_user_id() == 'Rodic100'  # repaired on connect
-    with session.as_child('12'):
-        assert state['who'] == 'Student12'
-    assert state['who'] == 'Rodic100' and session.edu is not None
-
-
-def test_child_switch_always_returns_and_is_verified():
-    edu = FakeEdu()
-    session = school_session(edu)
+    session = SchoolSession(SCHOOL, '', lambda s, l: SAVED)
+    with session.as_child('12') as edu:
+        assert edu._selected_child_id == 12
     with session.as_child('11'):
         pass
-    assert edu.switched == [11] and session.restores == [LABEL] and session.edu is edu
+    assert selected == ['12', '11'] and edu._selected_child_id is None
+    assert not any('edupageChange' in url for url in web.calls)  # no switch back: nothing needs a login
+    assert session.edu is edu  # kept open between calls
+
+
+def test_every_child_call_selects_its_child_first():
+    edu = FakeEdu()
+    session = school_session(edu)
+    for child in ('11', '12', '11'):
+        with session.as_child(child):
+            pass
+    assert edu.switched == [11, 12, 11] and session.edu is edu
+
+
+def test_a_failed_selection_drops_the_session():
+    edu = FakeEdu()
+    session = school_session(edu)
+    session.connect()
 
     def half_applied(child_id):
         raise TimeoutError()
     edu.switch_to_child = half_applied
     with pytest.raises(TimeoutError):
         with session.as_child('11'):
-            pass
-    assert session.restores == [LABEL, LABEL]
-
-    stuck = school_session(FakeEdu(), reloader=lambda e, s: 'Student11')
-    with stuck.as_child('11'):
-        pass
-    assert stuck.edu is None
+            raise AssertionError('must not run with an unknown selection')
+    assert session.edu is None
 
 
-def test_a_session_still_showing_a_child_is_refused_if_it_cannot_be_repaired():
+def test_a_session_for_another_account_is_refused():
     edu = FakeEdu()
     edu.data['userid'] = 'Student11'
-    session = SchoolSession(SCHOOL, LABEL, lambda s, l: SAVED, opener=lambda saved: edu,
-                            reloader=lambda e, s: e.data['userid'], restorer=lambda e, s, l: None)
+    session = SchoolSession(SCHOOL, '', lambda s, l: SAVED, opener=lambda saved: edu)
     with pytest.raises(EduPageError, match='^ACCOUNT_MISMATCH$'):
         session.connect()
 

@@ -29,11 +29,15 @@ def test_school_arguments():
     env = {'EDUPAGE_USERNAME': 'p@example.invalid'}
     assert config.parse_schools(['a', 'b=q@example.invalid'], environ=env) == [
         ('a', 'p@example.invalid'), ('b', 'q@example.invalid')]
+    assert config.parse_schools(['https://c.edupage.org/user/?eqa=x', 'D.edupage.org=q@example.invalid'],
+                                environ=env) == [('c', 'p@example.invalid'), ('d', 'q@example.invalid')]
     for values, code in [(['a', 'a'], 'DUPLICATE_SCHOOL'), ([], 'SCHOOL_REQUIRED'), (['x.com'], 'INVALID_SCHOOL')]:
         with pytest.raises(EduPageError, match=f'^{code}$'):
             config.parse_schools(values, environ=env)
-    with pytest.raises(EduPageError, match='^USERNAME_MISSING$'):
-        config.parse_schools(['a'], environ={})
+    assert config.parse_schools(['a', 'b=q@example.invalid'], environ={}) == [
+        ('a', ''), ('b', 'q@example.invalid')]  # no username needed
+    with pytest.raises(EduPageError, match='^INVALID_USERNAME$'):
+        config.parse_schools(['a=x\ny'], environ={})
 
 
 def test_cli_stops_early_without_a_safe_environment(monkeypatch, capsys):

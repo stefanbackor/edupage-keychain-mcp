@@ -11,10 +11,6 @@ You sign in once per school in Chrome, on EduPage's own page, two-factor
 included. Only the resulting session cookies are kept, in the **macOS
 Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
-> Unofficial. Not affiliated with EduPage or aSc Applied Software Consultants.
-> EduPage's web endpoints are undocumented and can change without notice.
-> macOS only.
-
 ## What you can ask
 
 - "What does each kid have tomorrow, and what's due this week?"
@@ -27,100 +23,100 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
 ## Install
 
-Requirements: macOS, Google Chrome, and [uv](https://docs.astral.sh/uv/)
-(`brew install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh`).
-There is nothing else to install: `uvx` fetches the package from PyPI and runs
-it in an isolated environment.
+### 1. Get the requirements
+
+You need macOS, Google Chrome, and [uv](https://docs.astral.sh/uv/):
 
 ```sh
-export EDUPAGE_USERNAME='you@example.com'      # your EduPage login name (not secret)
-uvx edupage-keyring-mcp login myschool        # myschool = the part before .edupage.org
+brew install uv          # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Chrome opens on your school's login page. Sign in there, including any
-two-factor prompt. When EduPage shows your account, the window closes and the
-session is saved to the Keychain. If macOS asks whether Python may use the
-Keychain, choose **Always Allow**.
+Nothing else to install: `uvx` downloads this server from PyPI and runs it in
+its own isolated environment.
 
-Check it:
+### 2. Connect your client
 
-```sh
-uvx edupage-keyring-mcp status --school myschool
-```
+Desktop apps need the full path to `uvx`; get it with `which uvx`. It is usually
+`/opt/homebrew/bin/uvx` (Homebrew) or `/Users/YOU/.local/bin/uvx` (installer
+script). Replace `myschool` with your school: the name before `.edupage.org`,
+or simply your school's whole EduPage address, such as
+`https://myschool.edupage.org`.
 
-A session lasts until EduPage expires it. Tools then return `AUTH_REQUIRED`
-(or `SESSION_EXPIRED`), and Claude can call the `sign_in` tool, which opens the
-same Chrome window from the running server (see [Signing in again](#signing-in-again)).
-Running `login` again in a terminal works too. `EDUPAGE_USERNAME` only labels the
-Keychain entry; the login name EduPage itself reports is stored at sign-in.
-
-## Connect Claude Desktop
-
-Open **Settings → Local MCP servers → Edit Config** (older versions:
-**Settings → Developer → Edit Config**) and add:
+**Claude Desktop:** open **Settings → Local MCP servers → Edit Config** (older
+versions: **Settings → Developer → Edit Config**) and add:
 
 ```json
 {
   "mcpServers": {
     "edupage": {
-      "command": "/Users/YOU/.local/bin/uvx",
-      "args": ["edupage-keyring-mcp@latest", "--school", "myschool"],
-      "env": { "EDUPAGE_USERNAME": "you@example.com" }
+      "command": "/opt/homebrew/bin/uvx",
+      "args": ["edupage-keyring-mcp@latest", "--school", "myschool"]
     }
   }
 }
 ```
 
-Use the output of `which uvx` as `command`. Quit Claude Desktop (⌘Q) and reopen it.
+Quit Claude Desktop (⌘Q) and reopen it.
 
-- **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`.
-  The first is the default. A school without a saved session reports
-  `AUTH_REQUIRED` and does not affect the others.
-- **Different login at one school:** `"--school", "second=other@example.com"`.
-- **No sign-in windows from the server:** add `"--no-browser-signin"`; `sign_in`
-  then reports `SIGNIN_UNAVAILABLE` and you sign in with `login` instead.
-- **Attachments on EduPage file servers:** if `get_attachment` reports
-  `REDIRECT_NOT_ALLOWED`, allow that exact host with
-  `"--download-host", "cloud-4.edupage.org"`. Only `*.edupage.org` hosts are accepted.
-
-## Connect other clients
-
-Sign in with `login` first (see [Install](#install)), then:
-
-**Claude Code**
+**Claude Code:**
 
 ```sh
-claude mcp add edupage --scope user -e EDUPAGE_USERNAME=you@example.com \
-  -- uvx edupage-keyring-mcp@latest --school myschool
+claude mcp add edupage --scope user -- uvx edupage-keyring-mcp@latest --school myschool
 ```
 
-**Codex CLI**
+**Codex CLI:**
 
 ```sh
-codex mcp add edupage --env EDUPAGE_USERNAME=you@example.com \
-  -- uvx edupage-keyring-mcp@latest --school myschool
+codex mcp add edupage -- uvx edupage-keyring-mcp@latest --school myschool
 ```
 
-**Cursor** (`~/.cursor/mcp.json`) uses the same JSON as Claude Desktop above.
+**Cursor:** add the Claude Desktop JSON above to `~/.cursor/mcp.json`.
 
-**VS Code** (`.vscode/mcp.json`, or **MCP: Open User Configuration**):
+**VS Code:** `.vscode/mcp.json`, or **MCP: Open User Configuration**:
 
 ```json
 {
   "servers": {
     "edupage": {
       "type": "stdio",
-      "command": "/Users/YOU/.local/bin/uvx",
-      "args": ["edupage-keyring-mcp@latest", "--school", "myschool"],
-      "env": { "EDUPAGE_USERNAME": "you@example.com" }
+      "command": "/opt/homebrew/bin/uvx",
+      "args": ["edupage-keyring-mcp@latest", "--school", "myschool"]
     }
   }
 }
 ```
 
-**Anything else:** run `uvx edupage-keyring-mcp@latest --school myschool` as a
-stdio server with `EDUPAGE_USERNAME` set. Desktop apps often don't see your
-shell's `PATH`, so give them the full path from `which uvx`.
+**Any other client:** run `uvx edupage-keyring-mcp@latest --school myschool` as
+a stdio server.
+
+### 3. Ask something
+
+Ask Claude about school, for example "What's on the timetable tomorrow?". The
+first time, Claude opens your school's EduPage in a Chrome window (Claude
+Desktop asks you first). Sign in there the way you always do: password,
+two-factor or QR code. The window closes by itself, the session is saved to the
+macOS Keychain, and Claude answers. If macOS asks whether Python may use the
+Keychain, choose **Always Allow**.
+
+Prefer to sign in before connecting a client? Run
+`uvx edupage-keyring-mcp login myschool`.
+
+### Options
+
+Add these to the `args` list (or after `--school myschool` on the command line):
+
+- **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`.
+  The first is the default. A school without a saved session reports
+  `AUTH_REQUIRED` and does not affect the others.
+- **Two accounts at one school** (say, as a parent and as a teacher): give each
+  its own label, for example `"--school", "myschool=teacher"`, and sign in to each
+  once. The label only names its Keychain entry.
+- **No sign-in windows from the server:** `"--no-browser-signin"`. `sign_in`
+  then reports `SIGNIN_UNAVAILABLE`, and you sign in with `login` in a terminal
+  (see [Command line](#command-line)).
+- **Attachments on EduPage file servers:** if `get_attachment` reports
+  `REDIRECT_NOT_ALLOWED`, allow that exact host with
+  `"--download-host", "cloud-4.edupage.org"`. Only `*.edupage.org` hosts are accepted.
 
 ### Updates
 
@@ -130,12 +126,29 @@ new release is picked up on the next client restart. What changed is on the
 
 ## Signing in again
 
-When a session expires, just ask again. Claude gets `AUTH_REQUIRED`, calls
-`sign_in` (Claude Desktop asks you first), and a Chrome window opens on your
-school's EduPage. Sign in there, two-factor included; the window closes by
-itself. Meanwhile Claude calls `wait_for_sign_in`, which returns as soon as
-you're signed in, and carries on with your question. No restart is needed, and
-you don't have to tell Claude you're done. The window waits up to 10 minutes.
+A session lasts until EduPage expires it. Then Claude does the same as the
+first time: it gets `AUTH_REQUIRED`, calls `sign_in`, and a Chrome window opens
+on your school's EduPage. While you sign in, Claude waits with
+`wait_for_sign_in`, which returns as soon as you're done, and carries on with
+your question. No restart is needed, and you don't have to tell Claude you're
+done. The window waits up to 10 minutes.
+
+Set up before version 0.2 with `EDUPAGE_USERNAME`? Keep it to go on using the
+session you saved then, or remove it and sign in once more.
+
+## Command line
+
+```text
+edupage-keyring-mcp [serve] --school NAME[=LOGIN] [--school ...] [--download-host HOST] [--no-browser-signin]
+edupage-keyring-mcp login NAME [--username LOGIN] [--timeout SECONDS]
+edupage-keyring-mcp logout NAME [--username LOGIN]
+edupage-keyring-mcp status --school NAME [...]
+edupage-keyring-mcp probe --school NAME [...]   # every read tool once; statuses and counts only
+```
+
+Run each with `uvx edupage-keyring-mcp@latest ...`. `logout` removes the local
+session only; EduPage itself is not logged out. `probe` is handy when reporting
+a problem: its output contains no school data.
 
 ## Features
 
@@ -215,8 +228,8 @@ These are marked `destructiveHint`; clients such as Claude Desktop ask before ea
 - **No password anywhere.** It is typed only into EduPage's page in a throwaway
   Chrome window. The Keychain item holds EduPage session cookies, the account ID
   and the login name EduPage reports.
-  The server refuses to start if any `EDUPAGE_*` environment variable other
-  than `EDUPAGE_USERNAME` is set.
+  No username is needed either. The server refuses to start if any `EDUPAGE_*`
+  environment variable other than the optional `EDUPAGE_USERNAME` label is set.
 - **Sign-in from the server stays local.** `sign_in` takes only a configured
   school and runs the same `login` command in a separate process. It opens a
   window only when the saved session is missing or expired, at most one per
@@ -232,52 +245,47 @@ These are marked `destructiveHint`; clients such as Claude Desktop ask before ea
 - **Narrow inputs.** No tool accepts a URL, cookie, session ID, header or
   password. Dates are ISO and window-limited. `school` only picks a configured
   school. Attachments are fetched by file id; the model never sees their URLs.
-- **Child switching is verified.** For parent accounts, child-scoped calls
-  switch to the child and back under a per-school lock, then re-check that the
-  session is the parent again; otherwise it is dropped and recovered before reuse.
+- **Each child call picks its child.** EduPage remembers which child a parent
+  session last selected, and some pages (grades, menus) show that child. So
+  every child-scoped call selects its own child immediately before reading,
+  under a per-school lock; if selecting fails, the session is dropped. Pages
+  for the parent (timeline, messages, sending) are not affected by the
+  selection: a message sent after selecting a child still comes from the
+  parent.
 - **Quiet errors.** Failures return fixed codes (and at most an exception class
   name), never server pages or messages.
 - **Untrusted content.** All school text is labelled `untrusted_content`.
-- **Pinned EduPage library.** `edupage-api` is pinned to an exact, reviewed version;
-  other dependencies take compatible updates within their major version. CI and
-  development use the hashed `uv.lock`.
+- **Pinned EduPage library.** `edupage-api` is pinned to an exact, reviewed
+  version; other dependencies take compatible updates within their major version.
 
 Reading can still be visible to EduPage, like opening a page in the browser.
 
 See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
-## Commands
+## Contributing
 
-```text
-edupage-keyring-mcp [serve] --school NAME[=LOGIN] [--school ...] [--download-host HOST] [--no-browser-signin]
-edupage-keyring-mcp login NAME [--username LOGIN] [--timeout SECONDS]
-edupage-keyring-mcp logout NAME [--username LOGIN]
-edupage-keyring-mcp status --school NAME [...]
-edupage-keyring-mcp probe --school NAME [...]   # every read tool once; statuses and counts only
-```
-
-`logout` removes the local session only; EduPage itself is not logged out.
-
-## Development
-
-```sh
-git clone https://github.com/stefanbackor/edupage-keyring-mcp
-cd edupage-keyring-mcp
-uv sync --locked
-uv run pytest
-```
-
-Tests use synthetic data only and never touch the network or the Keychain.
-
-Upgrading `edupage-api` means changing its pin in `pyproject.toml`, running
-`uv lock`, and reviewing the diff. `uv lock --upgrade` refreshes the others.
-
-Releases are cut by the maintainer through an agent, with the `/release`
-skill in `.claude/skills/release/`. The notes live only in GitHub Releases.
+Development setup, tests and releases are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
-Built on [edupage-api](https://github.com/EdupageAPI/edupage-api) (GPL-3.0).
+Built on [edupage-api](https://github.com/EdupageAPI/edupage-api), a community
+Python library for EduPage accounts, licensed under GPL-3.0. It does the
+EduPage requests and parsing; this project adds the Keychain sessions, browser
+sign-in, network confinement and the MCP tools. Its version is pinned exactly,
+so a new `edupage-api` release reaches users only through a release of this
+project.
+
+## Disclaimer
+
+This is an independent open-source project. It is not affiliated with,
+endorsed by, or supported by aSc Applied Software Consultants, s.r.o., the
+company that makes EduPage. The EduPage name is used only to say which service
+this software works with. All EduPage access goes through
+[`edupage-api`](https://github.com/EdupageAPI/edupage-api), an independent
+community library that is not part of this project either. It relies on
+EduPage's undocumented web endpoints, which can change without notice; when
+they do, this server may stop working until `edupage-api` and then this project
+are updated. Use it at your own risk.
 
 ## License
 

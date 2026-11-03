@@ -58,3 +58,21 @@ def test_environment_is_ignored(monkeypatch):
     monkeypatch.setenv('HTTPS_PROXY', 'http://proxy.invalid:9')
     monkeypatch.setenv('REQUESTS_CA_BUNDLE', '/nonexistent')
     assert SchoolHttp({HOST}).trust_env is False
+
+
+@pytest.mark.parametrize('typed', ['demo', ' Demo ', 'demo.edupage.org', 'DEMO.EDUPAGE.ORG',
+                                   'https://demo.edupage.org', 'https://demo.edupage.org/user/?x=1#y',
+                                   'http://demo.edupage.org/', 'demo.edupage.org/login/'])
+def test_pasted_school_addresses_become_the_short_name(typed):
+    from edupage_keyring_mcp.net import school_name
+    assert school_name(typed) == 'demo'
+
+
+@pytest.mark.parametrize('typed', ['', 'https://evil.com/', 'https://demo.edupage.org.evil.com/',
+                                   'https://a.b.edupage.org/', 'ftp://demo.edupage.org/',
+                                   'https://u:p@demo.edupage.org/', 'https://demo.edupage.org:8443/',
+                                   'https://login1.edupage.org/', 'https://[::1]/'])
+def test_other_addresses_are_refused(typed):
+    from edupage_keyring_mcp.net import school_name
+    with pytest.raises(EduPageError, match='^INVALID_SCHOOL$'):
+        school_name(typed)

@@ -72,27 +72,8 @@ def open_edupage(saved: SavedSession) -> Any:
         edu.session.cookies.set(cookie.name, cookie.value, domain=cookie.domain,
                                 path=cookie.path, secure=True)
     fetch_userhome(edu, saved.school)
-    # edupage-api builds its switch-back request from this; it must be the real login.
-    edu.username = saved.login
+    edu.username = saved.login or None  # informational; nothing here switches accounts by login
     return edu
-
-
-def current_account(edu: Any, school: str) -> str:
-    fetch_userhome(edu, school)
-    return str(edu.data['userid'])
-
-
-def return_to_parent(edu: Any, school: str, login: str) -> None:
-    """Ask EduPage to put the session back on the parent account.
-
-    Done directly because edupage-api's own `switch_to_parent` refuses to run
-    when its cached data already reports the child.
-    """
-    response = edu.session.get(f'https://{school_host(school)}/login/edupageChange',
-                               params={'rid': f'edupage;{school};{login}'})
-    if 'EdupageLoginFailed' in response.url:
-        raise EduPageError('ACCOUNT_MISMATCH')
-    edu._selected_child_id = None
 
 
 def fold(text: str) -> str:
@@ -105,41 +86,31 @@ _fold = fold  # used by sibling modules
 
 
 class SchoolSession:
-    """A lazily opened edupage-api client for one school, guarded by one lock."""
+    """A lazily opened edupage-api client for one school, guarded by one lock.
+
+    `label` names the Keychain entry when one school has several accounts; it
+    is empty for the usual one account per school.
+    """
 
     def __init__(self, school: str, label: str,
                  loader: Callable[[str, str], SavedSession],
                  opener: Callable[[SavedSession], Any] = open_edupage,
-                 reloader: Callable[[Any, str], str] = current_account,
-                 restorer: Callable[[Any, str, str], None] = return_to_parent,
                  lock: Any = None) -> None:
         self.school = school
         self.label = label
         self.host = school_host(school)
         self._loader, self._opener = loader, opener
-        self._reloader, self._restorer = reloader, restorer
         self.lock = lock if lock is not None else threading.RLock()
         self.edu: Any = None
         self.saved: SavedSession | None = None
-
-    @property
-    def expected_userid(self) -> str | None:
-        return self.saved.account if self.saved else None
 
     def connect(self) -> Any:
         if self.edu is not None:
             return self.edu
         saved = self._loader(self.school, self.label)
         edu = self._opener(saved)
-        seen = str(edu.data.get('userid'))
-        if seen != saved.account and saved.account.startswith('Rodic'):
-            # Left in a child's view by an earlier failure: put it back, then re-check.
-            try:
-                self._restorer(edu, self.school, saved.login)
-                seen = self._reloader(edu, self.school)
-            except Exception:
-                raise EduPageError('ACCOUNT_MISMATCH') from None
-        if seen != saved.account:
+        if str(edu.data.get('userid')) != saved.account:
+            edu.session.close()
             raise EduPageError('ACCOUNT_MISMATCH')
         self.saved, self.edu = saved, edu
         return edu
@@ -201,18 +172,26 @@ class SchoolSession:
 
     @contextmanager
     def as_child(self, child_id: str | None) -> Iterator[Any]:
-        """Switch a parent session to one child for the block, then back, verified."""
+        """Select one child of a parent account for the block.
+
+        EduPage keeps the selected child in the session, and some pages (grades,
+        menus) read whichever child is selected. So every child-scoped call
+        selects its own child first, under the school's lock, and nothing reads
+        child data without doing so. Parent-level pages (timeline, messages,
+        sending) are unaffected by the selection, as checked against a live
+        account, so there is no switch back. If selecting fails, the session is
+        dropped rather than trusted.
+        """
         edu = self.connect()
         if child_id is None or self.role != 'parent':
             yield edu
             return
         try:
-            edu.switch_to_child(int(child_id))  # may be applied server-side even if it raises
+            edu.switch_to_child(int(child_id))
+        except Exception:
+            self.reset()  # the selection may be half applied server-side
+            raise
+        try:
             yield edu
         finally:
-            try:
-                self._restorer(edu, self.school, self.saved.login)
-                if self._reloader(edu, self.school) != self.expected_userid:
-                    raise EduPageError('ACCOUNT_MISMATCH')
-            except Exception:
-                self.reset()  # connect() will repair or refuse it next time
+            edu._selected_child_id = None  # edupage-api's own memory of the selection

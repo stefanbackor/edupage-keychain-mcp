@@ -116,21 +116,13 @@ class FakeEdu:
         return 999
 
 
-def school_session(edu, school=SCHOOL, restorer=None, reloader=None):
+def school_session(edu, school=SCHOOL):
     def load(name, label):
         if isinstance(edu, Exception):
             raise edu
         return SavedSession(name, edu.data['userid'], LABEL, (COOKIE,))
 
-    restores = []
-
-    def restore(e, name, login):
-        restores.append(login)
-    session = SchoolSession(school, LABEL, load, opener=lambda saved: edu,
-                            reloader=reloader or (lambda e, s: e.data['userid']),
-                            restorer=restorer or restore)
-    session.restores = restores
-    return session
+    return SchoolSession(school, '', load, opener=lambda saved: edu)
 
 
 def tools_for(*pairs) -> FullTools:

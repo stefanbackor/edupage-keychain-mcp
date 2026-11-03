@@ -79,7 +79,7 @@ def capture_cookies(school: str, wait_seconds: int = 600,
     return session_cookies(host, mine)
 
 
-def sign_in(school: str, label: str, store: SessionStore | None = None,
+def sign_in(school: str, label: str = '', store: SessionStore | None = None,
             wait_seconds: int = 600) -> dict:
     """Capture a browser session, check it against EduPage, then save it."""
     cookies = tuple(capture_cookies(school, wait_seconds))
@@ -88,21 +88,13 @@ def sign_in(school: str, label: str, store: SessionStore | None = None,
     try:
         page = fetch_userhome(edu, school)
         account = str(edu.data['userid'])
-        reported = reported_login(page, school)
-        login = reported or label
+        login = reported_login(page, school) or label
     finally:
         edu.session.close()
     (store or SessionStore()).save(label, SavedSession(school, account, login, cookies))
     role = ('parent' if account.startswith('Rodic') else
             'student' if account.startswith('Student') else 'teacher')
-    result = {'status': 'SAVED', 'school': school, 'role': role}
-    if reported is None and role == 'parent':
-        result['note'] = ('EduPage did not show the login name; switching between children '
-                          'assumes it is exactly the one given.')
-    elif login.casefold() != label.casefold():
-        result['note'] = 'EduPage reports a different login name than the one given; using EduPage\'s.'
-    return result
-
+    return {'status': 'SAVED', 'school': school, 'role': role}
 
 STATUS_CODE = re.compile(r'^[A-Z][A-Z_]{1,40}$')
 
@@ -115,7 +107,15 @@ def spawn_login(school: str, label: str) -> Any:
     return subprocess.Popen(
         [sys.executable, '-m', 'edupage_keyring_mcp', 'login', school],
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-        env=dict(os.environ, EDUPAGE_USERNAME=label), close_fds=True)
+        env=_login_env(label), close_fds=True)
+
+
+def _login_env(label: str) -> dict[str, str]:
+    env = dict(os.environ)
+    env.pop('EDUPAGE_USERNAME', None)
+    if label:
+        env['EDUPAGE_USERNAME'] = label
+    return env
 
 
 def login_outcome(output: bytes | str | None, returncode: int | None) -> str:

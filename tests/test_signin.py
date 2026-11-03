@@ -77,9 +77,9 @@ def test_sign_in_stores_the_login_edupage_reports(web, monkeypatch):
     monkeypatch.setattr(signin, 'capture_cookies', lambda school, wait: [Cookie('PHPSESSID', 'abc', HOST)])
     web.routes[f'https://{HOST}/user/'] = lambda r: reply(r, 200, account_page(login='parent.real@example.invalid'))
     ring = MemoryKeyring()
-    result = signin.sign_in(SCHOOL, LABEL, SessionStore(ring))
-    assert result['status'] == 'SAVED' and result['role'] == 'parent' and 'note' in result
-    saved = SessionStore(ring).load(SCHOOL, LABEL)
+    result = signin.sign_in(SCHOOL, store=SessionStore(ring))
+    assert result == {'status': 'SAVED', 'school': SCHOOL, 'role': 'parent'}
+    saved = SessionStore(ring).load(SCHOOL, '')
     assert saved.account == 'Rodic100' and saved.login == 'parent.real@example.invalid'
 
 
@@ -139,3 +139,6 @@ def test_the_login_child_never_shares_the_mcp_channel(monkeypatch):
     assert seen['argv'][1:] == ['-m', 'edupage_keyring_mcp', 'login', SCHOOL]
     assert seen['stdout'] == signin.subprocess.PIPE and seen['stdin'] == signin.subprocess.DEVNULL
     assert seen['env']['EDUPAGE_USERNAME'] == LABEL and LABEL not in seen['argv']
+    monkeypatch.setenv('EDUPAGE_USERNAME', 'someone@example.invalid')
+    signin.spawn_login(SCHOOL, '')
+    assert 'EDUPAGE_USERNAME' not in seen['env']  # the child uses the same Keychain entry
