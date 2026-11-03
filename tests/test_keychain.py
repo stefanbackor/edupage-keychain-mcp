@@ -51,11 +51,14 @@ def test_one_account_per_school_needs_no_label():
     assert store.load(SCHOOL, LABEL) == SAVED and len(ring.secrets) == 2
 
 
-def test_load_failures():
+def test_load_failures(capsys):
     with pytest.raises(EduPageError, match='^NOT_SIGNED_IN$'):
         SessionStore(MemoryKeyring()).load(SCHOOL, LABEL)
     with pytest.raises(EduPageError, match='^KEYCHAIN_LOCKED$'):
         SessionStore(MemoryKeyring(broken=True)).load(SCHOOL, LABEL)
+    log = capsys.readouterr().err
+    assert 'KEYCHAIN_LOCKED from OSError' in log and 'in get_password' in log
+    assert 'keychain locked' not in log
     ring = MemoryKeyring()
     for secret in ['not json', json.dumps({'format': 1}), json.dumps(
             {'format': 2, 'school': 'other', 'account': 'x', 'login': 'y', 'cookies': []}),
