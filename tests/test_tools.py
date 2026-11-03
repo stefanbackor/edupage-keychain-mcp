@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from conftest import FakeEdu, event, tools_for
+from conftest import FakeEdu, event, reply, tools_for
 from edupage_keyring_mcp.data import missing_teacher_names, recipient_matches, tolerant_grades
 from edupage_keyring_mcp.errors import EduPageError
 
@@ -115,13 +115,14 @@ def test_send_message_checks_recipient_and_body():
     assert edu.sent == [(['Teacher55'], 'Dobrý deň')]
 
 
-def test_meal_tools():
+def test_meal_tools(web):
+    web.routes['https://demo-school.edupage.org/menu/'] = lambda r: reply(r, 200, b'<html></html>')  # no canteen
     edu = FakeEdu()
     tools = tools_for(('demo-school', edu))
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
-    assert tools.get_meals('Ema', tomorrow)['status'] == 'MEALS_NOT_AVAILABLE'
+    assert tools.choose_meal('Ema', tomorrow, 'lunch', 1)['status'] == 'MEALS_NOT_AVAILABLE'
     edu.get_meals = lambda day: None.canteen
-    assert tools.get_meals('Ema', tomorrow)['status'] == 'MEALS_NOT_AVAILABLE'
+    assert tools.choose_meal('Ema', tomorrow, 'lunch', 1)['status'] == 'MEALS_NOT_AVAILABLE'
     picked = []
     lunch = SimpleNamespace(chooseable_menus=['A', 'B'], menus=[], title='Obed', served_from=None,
                             served_to=None, ordered_meal=None, can_be_changed_until=None,

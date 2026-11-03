@@ -185,25 +185,6 @@ def tolerant_grades(userhome: dict, data: Any) -> tuple[list[dict], int]:
     return rows, skipped
 
 
-def meal_data(meal: Any) -> dict | None:
-    if meal is None:
-        return None
-    menus = []
-    for menu in meal.menus or []:
-        rating = menu.rating
-        menus.append({
-            'number': plain(menu.number), 'name': plain(menu.name),
-            'allergens': plain(menu.allergens), 'weight': plain(menu.weight),
-            'rated': rating is not None,
-        })
-    return {
-        'title': plain(meal.title), 'served_from': plain(getattr(meal.served_from, 'time', lambda: None)()),
-        'served_to': plain(getattr(meal.served_to, 'time', lambda: None)()),
-        'ordered_menu': plain(meal.ordered_meal), 'choosable_menus': plain(meal.chooseable_menus),
-        'can_be_changed_until': plain(meal.can_be_changed_until), 'menus': menus,
-    }
-
-
 # ---------------------------------------------------------------------------
 # Validation helpers
 # ---------------------------------------------------------------------------

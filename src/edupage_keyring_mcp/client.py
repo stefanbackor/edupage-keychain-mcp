@@ -19,6 +19,27 @@ from .net import SchoolHttp, school_host
 ACCOUNT_ROW = re.compile(r'data-rowid="edupage;([^";]+);([^";]+);[^"]*"')
 
 
+def get_page(edu: Any, url: str) -> str:
+    """A signed-in page from the school host, as text.
+
+    Raises:
+        EduPageError: AUTH_REQUIRED when EduPage no longer accepts the session,
+            TEMPORARY_ERROR on network failures and other error statuses.
+    """
+    try:
+        response = edu.session.get(url)
+    except EduPageError as exc:
+        # An expired session is redirected to EduPage's central login host.
+        raise EduPageError('AUTH_REQUIRED' if exc.code == 'HOST_NOT_ALLOWED' else exc.code) from None
+    except requests.RequestException:
+        raise EduPageError('TEMPORARY_ERROR') from None
+    if response.status_code in (401, 403) or urlsplit(response.url).path.startswith('/login'):
+        raise EduPageError('AUTH_REQUIRED')
+    if response.status_code != 200:
+        raise EduPageError('TEMPORARY_ERROR')
+    return response.content.decode('utf-8', errors='replace')
+
+
 def fetch_userhome(edu: Any, school: str) -> str:
     """Load `/user/` into `edu.data`; return the page so callers can read more from it.
 
@@ -28,19 +49,9 @@ def fetch_userhome(edu: Any, school: str) -> str:
     """
     from edupage_api.login_session import LoginSession
 
-    try:
-        response = edu.session.get(f'https://{school_host(school)}/user/')
-    except EduPageError as exc:
-        # An expired session is redirected to EduPage's central login host.
-        raise EduPageError('AUTH_REQUIRED' if exc.code == 'HOST_NOT_ALLOWED' else exc.code) from None
-    except requests.RequestException:
-        raise EduPageError('TEMPORARY_ERROR') from None
-    page = response.content.decode('utf-8', errors='replace')
-    if response.status_code in (401, 403) or urlsplit(response.url).path.startswith('/login') \
-            or 'userhome(' not in page:
+    page = get_page(edu, f'https://{school_host(school)}/user/')
+    if 'userhome(' not in page:
         raise EduPageError('AUTH_REQUIRED')
-    if response.status_code != 200:
-        raise EduPageError('TEMPORARY_ERROR')
     try:
         LoginSession(edu).parse_login_data(page)
     except Exception:

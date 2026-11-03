@@ -12,15 +12,23 @@ from urllib.parse import urljoin, urlsplit
 
 import requests
 
+from . import meals
 from .client import SchoolSession, _fold
-from .data import (MAX_TIMELINE_DAYS, _name, event_data, grade_data, lesson_data, meal_data,
+from .data import (MAX_TIMELINE_DAYS, _name, event_data, grade_data, lesson_data,
                    missing_teacher_names, parse_day, parse_since, plain, recipient_matches,
                    tolerant_grades)
 from .errors import EduPageError
 from .net import SchoolHttp, is_edupage_host
 
 MAX_MESSAGE_CHARS = 5000
-MEAL_TYPES = ('snack', 'lunch', 'afternoon_snack')
+MEAL_TYPES = tuple(meals.MEAL_SLOTS)
+# Fixed text for the agent while edupage-api cannot act on the canteen page.
+MEAL_ACTIONS_UNAVAILABLE = {
+    'reason': 'Ordering, cancelling and rating meals are temporarily unavailable: the edupage-api '
+              'library this server uses cannot read the current EduPage canteen page. Nothing was sent.',
+    'next_step': 'Tell the person to order, cancel or rate the meal in EduPage itself '
+                 '(the Jedálny lístok / menu page). get_meals still shows the menu.',
+}
 RECIPIENT_RE = re.compile(r'(Teacher|Student|StudentOnly|Rodic)(-?\d{1,12})')
 
 # Timeline groups by EduPage event type code (`typ`).
@@ -471,42 +479,48 @@ class FullTools:
         return self.timeline(kinds, child, since, school)
 
     # -- meals -------------------------------------------------------------
+    # get_meals reads the canteen page itself (meals.py). choose_meal, sign_off_meal
+    # and rate_meal still go through edupage-api, which 0.13.3 cannot do on the
+    # current page; they then answer MEAL_ACTIONS_UNAVAILABLE and send nothing.
     @staticmethod
-    def _load_meals(edu: Any, day: date) -> Any:
-        """Menu for a day, or MEALS_NOT_AVAILABLE when the school has no canteen data.
+    def _load_meals(edu: Any, school: str, day: date) -> Any:
+        """edupage-api's meals for a day, ready for its choose/sign_off/rate calls.
 
-        edupage-api crashes with AttributeError/KeyError when the menu page
-        carries no canteen block for this school.
+        Raises:
+            EduPageError: MEAL_ACTIONS_UNAVAILABLE when the canteen page has this
+                day's meals but edupage-api cannot read it; MEALS_NOT_AVAILABLE
+                when the school has no canteen data.
         """
         try:
-            meals = edu.get_meals(day)
-        except (AttributeError, KeyError, TypeError) as exc:
-            raise EduPageError('MEALS_NOT_AVAILABLE') from exc
+            listed = edu.get_meals(day)
         except Exception as exc:
-            if type(exc).__name__ == 'InvalidMealsData':
-                raise EduPageError('MEALS_NOT_AVAILABLE') from exc
-            raise
-        if meals is None:
+            if not isinstance(exc, (AttributeError, KeyError, TypeError, ValueError)) \
+                    and type(exc).__name__ != 'InvalidMealsData':
+                raise
+            listed = None
+        if listed is None:
+            if any(meals.load_day(edu, school, day).values()):  # our own reader still sees meals
+                raise EduPageError('MEAL_ACTIONS_UNAVAILABLE', **MEAL_ACTIONS_UNAVAILABLE)
             raise EduPageError('MEALS_NOT_AVAILABLE')
-        return meals
+        return listed
 
-    def _meal(self, edu: Any, day: date, meal_type: str) -> Any:
-        meals = self._load_meals(edu, day)
-        meal = getattr(meals, meal_type, None)
+    def _meal(self, edu: Any, school: str, day: date, meal_type: str) -> Any:
+        meal = getattr(self._load_meals(edu, school, day), meal_type, None)
         if meal is None:
             raise EduPageError('MEALS_NOT_AVAILABLE')
         return meal
 
     def get_meals(self, child: str = '', day: str = '', school: str = '') -> dict:
+        """Read from the canteen page directly; edupage-api 0.13.3 cannot parse it (see meals.py)."""
         try:
             when = parse_day(day, back=7, ahead=30)
         except EduPageError as exc:
             return {'status': exc.code}
 
         def go(session: SchoolSession, edu: Any, found: dict | None) -> dict:
-            meals = self._load_meals(edu, when)
+            day_meals = meals.load_day(edu, session.school, when)
             return {'date': when.isoformat(),
-                    'meals': {t: meal_data(getattr(meals, t, None)) for t in MEAL_TYPES}}
+                    'meals': {t: m.view() if m else None for t, m in day_meals.items()}}
         return self.for_child(child, school, go)
 
     def _meal_args(self, day: str, meal_type: str) -> date:
@@ -521,7 +535,7 @@ class FullTools:
             return {'status': exc.code, **exc.extra}
 
         def go(session: SchoolSession, edu: Any, found: dict | None) -> dict:
-            meal = self._meal(edu, when, meal_type)
+            meal = self._meal(edu, session.school, when, meal_type)
             letters = 'ABCDEFGH'
             if not 1 <= number <= len(letters) or letters[number - 1] not in (meal.chooseable_menus or []):
                 raise EduPageError('INVALID_MENU_NUMBER', choosable=plain(meal.chooseable_menus))
@@ -537,7 +551,7 @@ class FullTools:
             return {'status': exc.code, **exc.extra}
 
         def go(session: SchoolSession, edu: Any, found: dict | None) -> dict:
-            self._meal(edu, when, meal_type).sign_off(edu)
+            self._meal(edu, session.school, when, meal_type).sign_off(edu)
             return {'ordered': False, 'date': when.isoformat(), 'meal_type': meal_type}
         return self.for_child(child, school, go)
 
@@ -554,7 +568,7 @@ class FullTools:
             return {'status': exc.code}
 
         def go(session: SchoolSession, edu: Any, found: dict | None) -> dict:
-            meal = self._meal(edu, when, meal_type)
+            meal = self._meal(edu, session.school, when, meal_type)
             rating = next((m.rating for m in meal.menus or [] if m.rating is not None), None)
             if rating is None:
                 raise EduPageError('RATING_NOT_AVAILABLE')

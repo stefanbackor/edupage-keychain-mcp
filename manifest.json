@@ -148,7 +148,7 @@
     },
     {
       "name": "get_meals",
-      "description": "A child's meal menu and order for a date. Returns MEALS_NOT_AVAILABLE if the school has no canteen module."
+      "description": "A child's menus, allergens and current order for a date. Returns MEALS_NOT_AVAILABLE if the school has no canteen module."
     },
     {
       "name": "choose_meal",
