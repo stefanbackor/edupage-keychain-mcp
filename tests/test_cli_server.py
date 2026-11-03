@@ -95,6 +95,7 @@ def test_release_metadata_agrees():
     bundle = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
     assert bundle['version'] == __version__ and bundle['name'] == project['name']
     assert bundle['description'] == manifest['description']
+    assert set(bundle['compatibility']['platforms']) == {'darwin', 'win32'}
 
 
 def test_bundle_manifest_lists_every_tool():
