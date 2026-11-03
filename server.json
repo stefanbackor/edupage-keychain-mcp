@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.stefanbackor/edupage-keyring-mcp",
   "title": "EduPage Keyring",
-  "description": "EduPage timetables, grades, homework and messages; session in macOS Keychain, no password.",
+  "description": "EduPage timetables, grades, homework and messages; session in the OS Credential Store, no password.",
   "repository": {
     "url": "https://github.com/stefanbackor/edupage-keyring-mcp",
     "source": "github"
