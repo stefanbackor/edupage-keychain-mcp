@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 import requests
 
 from .errors import EduPageError
-from .keychain import SavedSession, session_cookies
+from .credential_store import SavedSession, session_cookies
 from .net import SchoolHttp, school_host
 
 ACCOUNT_ROW = re.compile(r'data-rowid="edupage;([^";]+);([^";]+);[^"]*"')

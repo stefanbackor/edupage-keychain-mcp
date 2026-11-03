@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 
 from .client import fetch_userhome, open_edupage, reported_login
 from .errors import EduPageError
-from .keychain import Cookie, SavedSession, SessionStore, parse_cookie, session_cookies
+from .credential_store import Cookie, SavedSession, SessionStore, parse_cookie, session_cookies
 from .net import school_host
 
 ACCOUNT_PAGES = ('/user', '/timeline', '/dashboard')
@@ -39,8 +39,8 @@ def _signed_in(host: str) -> Callable[[str], bool]:
     return check
 
 
-def capture_cookies(school: str, wait_seconds: int = 600,
-                    playwright: Callable[[], Any] | None = None) -> list[Cookie]:
+def capture_session_cookie(school: str, wait_seconds: int = 600,
+                           playwright: Callable[[], Any] | None = None) -> Cookie:
     """Show EduPage in Chrome and return the school's session cookie once the person is signed in.
 
     Raises SCHEMA_CHANGED when the window holds no `PHPSESSID` for the school host.
@@ -82,14 +82,14 @@ def capture_cookies(school: str, wait_seconds: int = 600,
             continue
     if not mine:
         raise EduPageError('SCHEMA_CHANGED')  # EduPage no longer issues its session cookie
-    return session_cookies(host, mine)
+    return session_cookies(host, mine)[0]
 
 
-def sign_in(school: str, label: str = '', store: SessionStore | None = None,
+def sign_in(school: str, label: str = '', *, store: SessionStore,
             wait_seconds: int = 600, playwright: Callable[[], Any] | None = None) -> dict:
     """Capture a browser session, check it against EduPage, then save it."""
-    cookies = tuple(capture_cookies(school, wait_seconds, playwright))
-    trial = SavedSession(school, account='', login=label, cookies=cookies)
+    cookie = capture_session_cookie(school, wait_seconds, playwright)
+    trial = SavedSession(school, account='', login=label, cookies=(cookie,))
     edu = open_edupage(trial)
     try:
         page = fetch_userhome(edu, school)
@@ -97,7 +97,7 @@ def sign_in(school: str, label: str = '', store: SessionStore | None = None,
         login = reported_login(page, school) or label
     finally:
         edu.session.close()
-    (store or SessionStore()).save(label, SavedSession(school, account, login, cookies))
+    store.save(label, SavedSession(school, account, login, (cookie,)))
     role = ('parent' if account.startswith('Rodic') else
             'student' if account.startswith('Student') else 'teacher')
     return {'status': 'SAVED', 'school': school, 'role': role}

@@ -4,7 +4,7 @@ import pytest
 from conftest import HOST, LABEL, SAVED, SCHOOL, FakeEdu, account_page, reply, school_session
 from edupage_keyring_mcp.client import SchoolSession, open_edupage, reported_login
 from edupage_keyring_mcp.errors import EduPageError
-from edupage_keyring_mcp.keychain import Cookie, SavedSession
+from edupage_keyring_mcp.credential_store import Cookie, SavedSession
 from edupage_keyring_mcp.net import SchoolHttp
 
 

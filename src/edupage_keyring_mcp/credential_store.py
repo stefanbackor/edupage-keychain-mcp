@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Saved Sessions in the Credential Store (macOS Keychain or Windows Credential Manager).
 
-A saved session is the set of EduPage cookies from one browser sign-in, plus
-the account it belongs to. There is no password field anywhere: the person
+A Saved Session is the EduPage session cookie from one browser sign-in, together
+with the EduPage account it belongs to, stored for one school (and optionally one
+account label). Sessions saved by older versions may hold several cookies and still load. There is no password field anywhere: the person
 types their password into EduPage in Chrome, never into this program.
 
 Credential Store entry, the same on both platforms: service `edupage-keyring-mcp`, account `<school>`, or
@@ -23,14 +24,20 @@ from .errors import EduPageError, log_unexpected
 
 SERVICE = 'edupage-keyring-mcp'
 FORMAT = 2
-SECRET_LIMIT = 2 * 1024  # characters; Credential Manager holds 2560 bytes of UTF-16
-COOKIE_LIMIT = 64
+SECRET_LIMIT = 2 * 1024  # characters, on save; Credential Manager holds 2560 bytes of UTF-16
+LOAD_LIMIT = 64 * 1024   # characters, on load; Saved Sessions from older versions are larger
+COOKIE_LIMIT = 64        # cookies in a loaded Saved Session
 TOKEN_CHARS = frozenset('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
                         "!#$%&'*+-.^_`|~")
 
 
-# The OS Credential Store backend accepted on each platform (ADR 0001); nothing else.
-CREDENTIAL_STORES = {'darwin': 'keyring.backends.macOS', 'win32': 'keyring.backends.Windows'}
+# The OS Credential Store backend accepted on each platform (ADR 0001); nothing else,
+# with the attributes set on it before use. On Windows a Saved Session must stay on
+# this machine, never roam to others with a domain profile.
+CREDENTIAL_STORES: dict[str, tuple[str, dict[str, Any]]] = {
+    'darwin': ('keyring.backends.macOS', {}),
+    'win32': ('keyring.backends.Windows', {'persist': 'local machine'}),
+}
 
 
 def open_credential_store(platform: str | None = None, backend: Any = None) -> SessionStore:
@@ -39,17 +46,18 @@ def open_credential_store(platform: str | None = None, backend: Any = None) -> S
     Only the built-in macOS Keychain and Windows Credential Manager backends are
     accepted: third-party plugins, file-based keyrings, chainer, fail and null are refused.
     """
-    allowed = CREDENTIAL_STORES.get(sys.platform if platform is None else platform)
-    if allowed is None:
+    entry = CREDENTIAL_STORES.get(sys.platform if platform is None else platform)
+    if entry is None:
         raise EduPageError('CREDENTIAL_STORE_REQUIRED')
+    allowed, settings = entry
     if backend is None:
         import keyring
         backend = keyring.get_keyring()
     module = type(backend).__module__
     if module != allowed and not module.startswith(allowed + '.'):
         raise EduPageError('CREDENTIAL_STORE_REQUIRED')
-    if allowed == CREDENTIAL_STORES['win32']:
-        backend.persist = 'local machine'  # keyring's default, enterprise, roams with the profile
+    for name, value in settings.items():
+        setattr(backend, name, value)
     return SessionStore(backend)
 
 
@@ -107,11 +115,12 @@ class SavedSession:
 
 
 class SessionStore:
-    """Credential Store persistence; `backend` is anything with keyring's three functions."""
+    """Credential Store persistence; `backend` is anything with keyring's three functions.
 
-    def __init__(self, backend: Any = None) -> None:
-        if backend is None:
-            import keyring as backend
+    Build it with open_credential_store, which accepts only the OS Credential Store.
+    """
+
+    def __init__(self, backend: Any) -> None:
         self.backend = backend
 
     def save(self, label: str, session: SavedSession) -> None:
@@ -137,7 +146,7 @@ class SessionStore:
         if secret is None:
             raise EduPageError('NOT_SIGNED_IN')
         try:
-            data = json.loads(secret) if len(secret) <= SECRET_LIMIT else None
+            data = json.loads(secret) if len(secret) <= LOAD_LIMIT else None
             if not (isinstance(data, dict) and data.get('format') == FORMAT
                     and data.get('school') == school and isinstance(data.get('cookies'), list)):
                 raise ValueError

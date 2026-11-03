@@ -4,13 +4,13 @@ import json
 import pytest
 
 from conftest import COOKIE, HOST, LABEL, SAVED, SCHOOL
-from edupage_keyring_mcp import keychain
+from edupage_keyring_mcp import credential_store
 from edupage_keyring_mcp.errors import EduPageError
-from edupage_keyring_mcp.keychain import (Cookie, SavedSession, SessionStore, account_key,
-                                           parse_cookie, session_cookies)
+from edupage_keyring_mcp.credential_store import (Cookie, SavedSession, SessionStore, account_key,
+                                                  parse_cookie, session_cookies)
 
 
-class MemoryKeyring:
+class MemoryCredentialStore:
     def __init__(self, broken=False):
         self.secrets, self.broken = {}, broken
 
@@ -29,7 +29,7 @@ class MemoryKeyring:
 
 
 def test_saved_session_round_trip():
-    ring = MemoryKeyring()
+    ring = MemoryCredentialStore()
     store = SessionStore(ring)
     store.save(LABEL, SAVED)
     [(service, account)] = ring.secrets
@@ -41,7 +41,7 @@ def test_saved_session_round_trip():
 
 
 def test_one_account_per_school_needs_no_label():
-    ring = MemoryKeyring()
+    ring = MemoryCredentialStore()
     store = SessionStore(ring)
     store.save('', SAVED)
     assert list(ring.secrets) == [('edupage-keyring-mcp', SCHOOL)]
@@ -54,20 +54,20 @@ def test_one_account_per_school_needs_no_label():
 
 def test_a_failed_write_is_reported(capsys):
     with pytest.raises(EduPageError, match='^CREDENTIAL_STORE_WRITE_FAILED$'):
-        SessionStore(MemoryKeyring(broken=True)).save(LABEL, SAVED)
+        SessionStore(MemoryCredentialStore(broken=True)).save(LABEL, SAVED)
     log = capsys.readouterr().err
     assert 'CREDENTIAL_STORE_WRITE_FAILED from OSError' in log and 'store locked' not in log
 
 
 def test_load_failures(capsys):
     with pytest.raises(EduPageError, match='^NOT_SIGNED_IN$'):
-        SessionStore(MemoryKeyring()).load(SCHOOL, LABEL)
+        SessionStore(MemoryCredentialStore()).load(SCHOOL, LABEL)
     with pytest.raises(EduPageError, match='^CREDENTIAL_STORE_LOCKED$'):
-        SessionStore(MemoryKeyring(broken=True)).load(SCHOOL, LABEL)
+        SessionStore(MemoryCredentialStore(broken=True)).load(SCHOOL, LABEL)
     log = capsys.readouterr().err
     assert 'CREDENTIAL_STORE_LOCKED from OSError' in log and 'in get_password' in log
     assert 'store locked' not in log
-    ring = MemoryKeyring()
+    ring = MemoryCredentialStore()
     for secret in ['not json', json.dumps({'format': 1}), json.dumps(
             {'format': 2, 'school': 'other', 'account': 'x', 'login': 'y', 'cookies': []}),
             json.dumps({'format': 2, 'school': SCHOOL, 'account': 'x', 'login': 'y', 'cookies': [['bad']]})]:
@@ -104,7 +104,7 @@ def backend_from(module):
 ])
 def test_the_os_credential_store_is_accepted(platform, module):
     backend = backend_from(module)
-    store = keychain.open_credential_store(platform, backend)
+    store = credential_store.open_credential_store(platform, backend)
     assert isinstance(store, SessionStore) and store.backend is backend
 
 
@@ -118,18 +118,18 @@ def test_the_os_credential_store_is_accepted(platform, module):
 ])
 def test_other_platforms_and_backends_are_refused(platform, module):
     with pytest.raises(EduPageError, match='^CREDENTIAL_STORE_REQUIRED$'):
-        keychain.open_credential_store(platform, backend_from(module))
+        credential_store.open_credential_store(platform, backend_from(module))
 
 
 def test_windows_saved_sessions_stay_on_this_machine():
     backend = backend_from('keyring.backends.Windows')
-    keychain.open_credential_store('win32', backend)
+    credential_store.open_credential_store('win32', backend)
     assert backend.persist == 'local machine'
 
 
 def test_macos_backend_has_no_persistence_setting():
     backend = backend_from('keyring.backends.macOS')
-    keychain.open_credential_store('darwin', backend)
+    credential_store.open_credential_store('darwin', backend)
     assert not hasattr(backend, 'persist')
 
 
@@ -141,13 +141,13 @@ def test_saved_session_is_immutable():
 
 def test_cookies_with_the_same_name_are_kept_apart():
     pair = (Cookie('PHPSESSID', 'school', HOST), Cookie('PHPSESSID', 'portal', '.edupage.org'))
-    ring = MemoryKeyring()
+    ring = MemoryCredentialStore()
     SessionStore(ring).save(LABEL, SavedSession(SCHOOL, 'Rodic100', LABEL, pair))
     assert SessionStore(ring).load(SCHOOL, LABEL).cookies == pair
 
 
 def test_a_secret_over_2_kb_is_refused_when_saving():
-    ring = MemoryKeyring()
+    ring = MemoryCredentialStore()
     big = SavedSession(SCHOOL, 'Rodic100', LABEL, (Cookie('PHPSESSID', 'x' * 2048, HOST),))
     with pytest.raises(EduPageError, match='^SESSION_CORRUPT$'):
         SessionStore(ring).save(LABEL, big)
@@ -159,9 +159,33 @@ def test_an_older_saved_session_with_several_cookies_still_loads():
               '"cookies":[["PHPSESSID","abc","%s","/",-1.0],["edusrs","s1","%s","/",-1.0],'
               '["egdid","d1",".edupage.org","/",4102444800.0],["hsid","h1","%s","/",-1.0],'
               '["erfp","r1","%s","/",-1.0]]}') % (SCHOOL, LABEL, HOST, HOST, HOST, HOST)
-    ring = MemoryKeyring()
+    ring = MemoryCredentialStore()
     ring.set_password('edupage-keyring-mcp', account_key(SCHOOL, LABEL), secret)
     saved = SessionStore(ring).load(SCHOOL, LABEL)
     assert saved.account == 'Rodic100' and saved.login == LABEL
     assert [c.name for c in saved.cookies] == ['PHPSESSID', 'edusrs', 'egdid', 'hsid', 'erfp']
     assert saved.cookies[2] == Cookie('egdid', 'd1', '.edupage.org', '/', 4102444800.0)
+
+
+def test_an_existing_saved_session_over_2_kb_still_loads():
+    cookies = [['c%d' % i, 'v' * 1000, HOST, '/', -1.0] for i in range(10)]
+    secret = json.dumps({'format': 2, 'school': SCHOOL, 'account': 'Rodic100', 'login': LABEL,
+                         'saved': 1761955200, 'cookies': cookies})
+    assert 2 * 1024 < len(secret) < 64 * 1024
+    ring = MemoryCredentialStore()
+    ring.set_password('edupage-keyring-mcp', account_key(SCHOOL, LABEL), secret)
+    assert len(SessionStore(ring).load(SCHOOL, LABEL).cookies) == 10
+
+
+def test_a_secret_over_64_kb_is_refused_when_loading():
+    secret = json.dumps({'format': 2, 'school': SCHOOL, 'account': 'Rodic100', 'login': LABEL,
+                         'cookies': [['PHPSESSID', 'v', HOST, '/', -1.0]], 'pad': 'x' * 64 * 1024})
+    ring = MemoryCredentialStore()
+    ring.set_password('edupage-keyring-mcp', account_key(SCHOOL, LABEL), secret)
+    with pytest.raises(EduPageError, match='^SESSION_CORRUPT$'):
+        SessionStore(ring).load(SCHOOL, LABEL)
+
+
+def test_a_session_store_needs_an_explicit_backend():
+    with pytest.raises(TypeError):
+        SessionStore()  # type: ignore[call-arg]  # no silent fallback past the ADR 0001 allowlist
