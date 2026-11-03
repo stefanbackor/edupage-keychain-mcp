@@ -5,7 +5,7 @@ An MCP server that reads and acts on EduPage school accounts using a browser sig
 ## Language
 
 **Saved Session**:
-The EduPage cookies from one browser sign-in, together with the EduPage account they belong to, stored for one school (and optionally one account label).
+The EduPage session cookie from one browser sign-in, together with the EduPage account it belongs to, stored for one school (and optionally one account label).
 _Avoid_: Credentials, token, login
 
 **Credential Store**:
