@@ -37,8 +37,9 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
 You need macOS and Google Chrome. Nothing else to install: when the extension
 is installed, Claude Desktop downloads its own copy of uv, which sets up Python
-and the extension's dependencies. The extension runs on your Mac like any local MCP server, with the same Keychain
-sessions. Then go on with [Ask something](#ask-something).
+and the extension's dependencies. The extension runs on your Mac like any
+local MCP server, with the same Keychain sessions. Then go on with
+[Ask something](#ask-something).
 
 > **Updates are manual.** The extension does not update itself. To get a new
 > version, download `edupage-keyring-mcp.mcpb` from the link above again and
