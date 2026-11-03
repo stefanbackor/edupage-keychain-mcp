@@ -4,8 +4,8 @@
 The person signs in on the school's EduPage site in an off-the-record Chrome
 window (Playwright with the installed Google Chrome). Their password and
 two-factor code go to EduPage only. When the browser reaches the signed-in
-account page we take EduPage's cookies from that window, prove they work
-through `SchoolHttp`, and store them in the Keychain. The window's cookies and
+account page we take EduPage's session cookie (`PHPSESSID`, the only one it
+needs) from that window, prove it works through `SchoolHttp`, and store it. The window's cookies and
 storage live in memory and are discarded when Chrome closes.
 
 `BrowserSignIn` lets the running MCP server start that same `login` command in
@@ -29,6 +29,7 @@ from .keychain import Cookie, SavedSession, SessionStore, parse_cookie, session_
 from .net import school_host
 
 ACCOUNT_PAGES = ('/user', '/timeline', '/dashboard')
+SESSION_COOKIE = 'PHPSESSID'
 
 
 def _signed_in(host: str) -> Callable[[str], bool]:
@@ -40,7 +41,10 @@ def _signed_in(host: str) -> Callable[[str], bool]:
 
 def capture_cookies(school: str, wait_seconds: int = 600,
                     playwright: Callable[[], Any] | None = None) -> list[Cookie]:
-    """Show EduPage in Chrome and return its cookies once the person is signed in."""
+    """Show EduPage in Chrome and return the school's session cookie once the person is signed in.
+
+    Raises SCHEMA_CHANGED when the window holds no `PHPSESSID` for the school host.
+    """
     host = school_host(school)
     if playwright is None:
         try:
@@ -69,20 +73,22 @@ def capture_cookies(school: str, wait_seconds: int = 600,
                 pass
     mine = []
     for c in jar:
-        if str(c.get('domain', '')).lstrip('.') not in (host, 'edupage.org'):
-            continue
+        if c.get('name') != SESSION_COOKIE or str(c.get('domain', '')).lstrip('.') != host:
+            continue  # EduPage needs nothing else; tracking and device cookies stay behind
         try:
             mine.append(parse_cookie(c.get('name'), c.get('value'), c.get('domain'),
                                      c.get('path', '/'), c.get('expires', -1)))
         except EduPageError:
-            continue  # an odd tracking cookie must not spoil the sign-in
+            continue
+    if not mine:
+        raise EduPageError('SCHEMA_CHANGED')  # EduPage no longer issues its session cookie
     return session_cookies(host, mine)
 
 
 def sign_in(school: str, label: str = '', store: SessionStore | None = None,
-            wait_seconds: int = 600) -> dict:
+            wait_seconds: int = 600, playwright: Callable[[], Any] | None = None) -> dict:
     """Capture a browser session, check it against EduPage, then save it."""
-    cookies = tuple(capture_cookies(school, wait_seconds))
+    cookies = tuple(capture_cookies(school, wait_seconds, playwright))
     trial = SavedSession(school, account='', login=label, cookies=cookies)
     edu = open_edupage(trial)
     try:

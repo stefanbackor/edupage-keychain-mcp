@@ -113,3 +113,16 @@ def test_cookies_with_the_same_name_are_kept_apart():
     ring = MemoryKeyring()
     SessionStore(ring).save(LABEL, SavedSession(SCHOOL, 'Rodic100', LABEL, pair))
     assert SessionStore(ring).load(SCHOOL, LABEL).cookies == pair
+
+
+def test_an_older_saved_session_with_several_cookies_still_loads():
+    secret = ('{"format":2,"school":"%s","account":"Rodic100","login":"%s","saved":1761955200,'
+              '"cookies":[["PHPSESSID","abc","%s","/",-1.0],["edusrs","s1","%s","/",-1.0],'
+              '["egdid","d1",".edupage.org","/",4102444800.0],["hsid","h1","%s","/",-1.0],'
+              '["erfp","r1","%s","/",-1.0]]}') % (SCHOOL, LABEL, HOST, HOST, HOST, HOST)
+    ring = MemoryKeyring()
+    ring.set_password('edupage-keyring-mcp', account_key(SCHOOL, LABEL), secret)
+    saved = SessionStore(ring).load(SCHOOL, LABEL)
+    assert saved.account == 'Rodic100' and saved.login == LABEL
+    assert [c.name for c in saved.cookies] == ['PHPSESSID', 'edusrs', 'egdid', 'hsid', 'erfp']
+    assert saved.cookies[2] == Cookie('egdid', 'd1', '.edupage.org', '/', 4102444800.0)
