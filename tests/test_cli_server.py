@@ -86,13 +86,13 @@ def test_tools_answer_over_mcp():
 
 def test_release_metadata_agrees():
     tomllib = pytest.importorskip('tomllib')
-    project = tomllib.loads((ROOT / 'pyproject.toml').read_text())['project']
-    manifest = json.loads((ROOT / 'server.json').read_text())
+    project = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))['project']
+    manifest = json.loads((ROOT / 'server.json').read_text(encoding='utf-8'))
     assert project['version'] == __version__ == manifest['version'] == manifest['packages'][0]['version']
     assert manifest['packages'][0]['identifier'] == project['name']
-    assert f"mcp-name: {manifest['name']}" in (ROOT / 'README.md').read_text()
+    assert f"mcp-name: {manifest['name']}" in (ROOT / 'README.md').read_text(encoding='utf-8')
     assert len(manifest['description']) <= 100
-    bundle = json.loads((ROOT / 'manifest.json').read_text())
+    bundle = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
     assert bundle['version'] == __version__ and bundle['name'] == project['name']
     assert bundle['description'] == manifest['description']
 
@@ -100,14 +100,14 @@ def test_release_metadata_agrees():
 def test_bundle_manifest_lists_every_tool():
     server = create_server(tools_for(('demo-school', FakeEdu())))
     served = {tool.name: tool.description for tool in asyncio.run(server.list_tools())}
-    bundle = json.loads((ROOT / 'manifest.json').read_text())
+    bundle = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
     assert {tool['name']: tool['description'] for tool in bundle['tools']} == served
     assert (ROOT / bundle['server']['entry_point']).is_file()
     tomllib = pytest.importorskip('tomllib')
-    project = tomllib.loads((ROOT / 'pyproject.toml').read_text())['project']
+    project = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))['project']
     assert bundle['compatibility']['runtimes']['python'] == project['requires-python']
 
 
 def test_every_source_file_carries_the_license_tag():
     for path in [*ROOT.glob('src/**/*.py'), *ROOT.glob('tests/*.py')]:
-        assert path.read_text().startswith('# SPDX-License-Identifier: GPL-3.0-or-later'), path
+        assert path.read_text(encoding='utf-8').startswith('# SPDX-License-Identifier: GPL-3.0-or-later'), path
