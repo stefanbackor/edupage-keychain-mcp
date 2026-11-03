@@ -2,8 +2,8 @@
 import pytest
 
 from conftest import HOST, reply
-from edupage_keychain_mcp.errors import EduPageError
-from edupage_keychain_mcp.net import SchoolHttp, is_edupage_host, school_host
+from edupage_keyring_mcp.errors import EduPageError
+from edupage_keyring_mcp.net import SchoolHttp, is_edupage_host, school_host
 
 
 @pytest.mark.parametrize('school', ['demo', 'zs-demo', 'a1'])

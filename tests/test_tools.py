@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import pytest
 
 from conftest import FakeEdu, event, tools_for
-from edupage_keychain_mcp.data import missing_teacher_names, recipient_matches, tolerant_grades
-from edupage_keychain_mcp.errors import EduPageError
+from edupage_keyring_mcp.data import missing_teacher_names, recipient_matches, tolerant_grades
+from edupage_keyring_mcp.errors import EduPageError
 
 
 def test_child_tools_name_the_child_and_mark_content_untrusted():

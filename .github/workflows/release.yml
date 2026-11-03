@@ -3,7 +3,7 @@ name: Release
 # Push a tag like v0.1.0 to publish to PyPI and the official MCP Registry.
 # One-time setup:
 #   1. PyPI → Your account → Publishing → add a pending trusted publisher:
-#      project edupage-keychain-mcp, owner stefanbackor, repo edupage-keychain-mcp,
+#      project edupage-keyring-mcp, owner stefanbackor, repo edupage-keyring-mcp,
 #      workflow release.yml, environment pypi.
 #   2. GitHub repo → Settings → Environments → create "pypi".
 on:
@@ -25,7 +25,7 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME#v}"
           py=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
-          init=$(grep -m1 '__version__' src/edupage_keychain_mcp/__init__.py | cut -d"'" -f2)
+          init=$(grep -m1 '__version__' src/edupage_keyring_mcp/__init__.py | cut -d"'" -f2)
           srv=$(jq -r .version server.json)
           pkg=$(jq -r '.packages[0].version' server.json)
           echo "tag=$tag pyproject=$py init=$init server=$srv package=$pkg"
@@ -67,7 +67,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           for i in $(seq 1 30); do
-            curl -fsS "https://pypi.org/pypi/edupage-keychain-mcp/$version/json" >/dev/null && exit 0
+            curl -fsS "https://pypi.org/pypi/edupage-keyring-mcp/$version/json" >/dev/null && exit 0
             sleep 10
           done
           exit 1

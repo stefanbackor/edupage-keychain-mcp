@@ -1,6 +1,6 @@
-# EduPage Keychain MCP
+# EduPage Keyring MCP
 
-<!-- mcp-name: io.github.stefanbackor/edupage-keychain-mcp -->
+<!-- mcp-name: io.github.stefanbackor/edupage-keyring-mcp -->
 
 An [MCP](https://modelcontextprotocol.io) server that lets Claude (or any MCP
 client) read your [EduPage](https://www.edupage.org) school account: timetables,
@@ -27,7 +27,7 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
 ## Why this one
 
-| | edupage-keychain-mcp | Typical EduPage MCP servers |
+| | edupage-keyring-mcp | Typical EduPage MCP servers |
 | --- | --- | --- |
 | Password | Never stored; typed only into EduPage in Chrome | `EDUPAGE_PASSWORD` in a config file |
 | Two-factor login | Yes, on EduPage's own page | Often unsupported or tool-driven |
@@ -44,7 +44,7 @@ Requirements: macOS, Google Chrome, and [uv](https://docs.astral.sh/uv/).
 
 ```sh
 export EDUPAGE_USERNAME='you@example.com'      # your EduPage login name (not secret)
-uvx edupage-keychain-mcp login myschool        # myschool = the part before .edupage.org
+uvx edupage-keyring-mcp login myschool        # myschool = the part before .edupage.org
 ```
 
 Chrome opens on your school's login page. Sign in there, including any
@@ -55,7 +55,7 @@ Keychain, choose **Always Allow**.
 Check it:
 
 ```sh
-uvx edupage-keychain-mcp status --school myschool
+uvx edupage-keyring-mcp status --school myschool
 ```
 
 A session lasts until EduPage expires it. Tools then return `AUTH_REQUIRED`
@@ -72,7 +72,7 @@ Open **Settings → Local MCP servers → Edit Config** (older versions:
   "mcpServers": {
     "edupage": {
       "command": "/Users/YOU/.local/bin/uvx",
-      "args": ["edupage-keychain-mcp", "--school", "myschool"],
+      "args": ["edupage-keyring-mcp", "--school", "myschool"],
       "env": { "EDUPAGE_USERNAME": "you@example.com" }
     }
   }
@@ -89,7 +89,7 @@ Use the output of `which uvx` as `command`. Quit Claude Desktop (⌘Q) and reope
   `REDIRECT_NOT_ALLOWED`, allow that exact host with
   `"--download-host", "cloud-4.edupage.org"`. Only `*.edupage.org` hosts are accepted.
 
-Other MCP clients: run `edupage-keychain-mcp --school myschool` as a stdio server.
+Other MCP clients: run `edupage-keyring-mcp --school myschool` as a stdio server.
 
 ## Features
 
@@ -193,11 +193,11 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 ## Commands
 
 ```text
-edupage-keychain-mcp [serve] --school NAME[=LOGIN] [--school ...] [--download-host HOST]
-edupage-keychain-mcp login NAME [--username LOGIN] [--timeout SECONDS]
-edupage-keychain-mcp logout NAME [--username LOGIN]
-edupage-keychain-mcp status --school NAME [...]
-edupage-keychain-mcp probe --school NAME [...]   # every read tool once; statuses and counts only
+edupage-keyring-mcp [serve] --school NAME[=LOGIN] [--school ...] [--download-host HOST]
+edupage-keyring-mcp login NAME [--username LOGIN] [--timeout SECONDS]
+edupage-keyring-mcp logout NAME [--username LOGIN]
+edupage-keyring-mcp status --school NAME [...]
+edupage-keyring-mcp probe --school NAME [...]   # every read tool once; statuses and counts only
 ```
 
 `logout` removes the local session only; EduPage itself is not logged out.
@@ -205,8 +205,8 @@ edupage-keychain-mcp probe --school NAME [...]   # every read tool once; statuse
 ## Development
 
 ```sh
-git clone https://github.com/stefanbackor/edupage-keychain-mcp
-cd edupage-keychain-mcp
+git clone https://github.com/stefanbackor/edupage-keyring-mcp
+cd edupage-keyring-mcp
 uv sync --locked
 uv run pytest
 ```

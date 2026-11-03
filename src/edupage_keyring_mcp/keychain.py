@@ -5,7 +5,7 @@ A saved session is the set of EduPage cookies from one browser sign-in, plus
 the account it belongs to. There is no password field anywhere: the person
 types their password into EduPage in Chrome, never into this program.
 
-Keychain item: service `edupage-keychain-mcp`, account `<school>/<sha1 of label>`,
+Keychain item: service `edupage-keyring-mcp`, account `<school>/<sha1 of label>`,
 secret = JSON {"format": 2, "account": ..., "login": ..., "cookies": [[name, value, domain, path, expires], ...]}.
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Any
 
 from .errors import EduPageError
 
-SERVICE = 'edupage-keychain-mcp'
+SERVICE = 'edupage-keyring-mcp'
 FORMAT = 2
 SECRET_LIMIT = 64 * 1024
 COOKIE_LIMIT = 64

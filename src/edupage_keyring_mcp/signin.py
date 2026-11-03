@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""`edupage-keychain-mcp login`: sign in with Chrome, keep only the session.
+"""`edupage-keyring-mcp login`: sign in with Chrome, keep only the session.
 
 The person signs in on the school's EduPage site in an off-the-record Chrome
 window (Playwright with the installed Google Chrome). Their password and

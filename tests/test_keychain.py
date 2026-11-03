@@ -5,9 +5,9 @@ import sys
 import pytest
 
 from conftest import COOKIE, HOST, LABEL, SAVED, SCHOOL
-from edupage_keychain_mcp import keychain
-from edupage_keychain_mcp.errors import EduPageError
-from edupage_keychain_mcp.keychain import (Cookie, SavedSession, SessionStore, account_key,
+from edupage_keyring_mcp import keychain
+from edupage_keyring_mcp.errors import EduPageError
+from edupage_keyring_mcp.keychain import (Cookie, SavedSession, SessionStore, account_key,
                                            parse_cookie, session_cookies)
 
 
@@ -32,7 +32,7 @@ def test_saved_session_round_trip():
     store = SessionStore(ring)
     store.save(LABEL, SAVED)
     [(service, account)] = ring.secrets
-    assert service == 'edupage-keychain-mcp'
+    assert service == 'edupage-keyring-mcp'
     assert account.startswith(SCHOOL + '/') and LABEL not in account
     assert store.load(SCHOOL, LABEL) == SAVED
     assert store.load(SCHOOL, LABEL.upper()) == SAVED  # label match ignores case
@@ -48,7 +48,7 @@ def test_load_failures():
     for secret in ['not json', json.dumps({'format': 1}), json.dumps(
             {'format': 2, 'school': 'other', 'account': 'x', 'login': 'y', 'cookies': []}),
             json.dumps({'format': 2, 'school': SCHOOL, 'account': 'x', 'login': 'y', 'cookies': [['bad']]})]:
-        ring.secrets['edupage-keychain-mcp', account_key(SCHOOL, LABEL)] = secret
+        ring.secrets['edupage-keyring-mcp', account_key(SCHOOL, LABEL)] = secret
         with pytest.raises(EduPageError, match='^SESSION_CORRUPT$'):
             SessionStore(ring).load(SCHOOL, LABEL)
 

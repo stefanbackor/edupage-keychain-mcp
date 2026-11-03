@@ -3,7 +3,7 @@ requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "edupage-keychain-mcp"
+name = "edupage-keyring-mcp"
 version = "0.1.0"
 description = "EduPage MCP server for Claude and other MCP clients: timetables, grades, homework, messages and more, with the session kept in the macOS Keychain and no stored password."
 readme = "README.md"
@@ -11,7 +11,7 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "Stefan Backor" }]
-keywords = ["mcp", "edupage", "school", "timetable", "grades", "homework", "keychain", "claude"]
+keywords = ["mcp", "edupage", "school", "timetable", "grades", "homework", "keychain", "keyring", "claude"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -35,18 +35,18 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/stefanbackor/edupage-keychain-mcp"
-Repository = "https://github.com/stefanbackor/edupage-keychain-mcp"
-Issues = "https://github.com/stefanbackor/edupage-keychain-mcp/issues"
+Homepage = "https://github.com/stefanbackor/edupage-keyring-mcp"
+Repository = "https://github.com/stefanbackor/edupage-keyring-mcp"
+Issues = "https://github.com/stefanbackor/edupage-keyring-mcp/issues"
 
 [project.scripts]
-edupage-keychain-mcp = "edupage_keychain_mcp.cli:main"
+edupage-keyring-mcp = "edupage_keyring_mcp.cli:main"
 
 [dependency-groups]
 dev = ["pytest==8.3.3"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/edupage_keychain_mcp"]
+packages = ["src/edupage_keyring_mcp"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/", "tests/", "README.md", "LICENSE", "SECURITY.md", "server.json"]

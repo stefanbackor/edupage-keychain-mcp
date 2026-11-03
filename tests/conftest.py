@@ -10,9 +10,9 @@ from types import SimpleNamespace
 import pytest
 import requests
 
-from edupage_keychain_mcp.client import SchoolSession
-from edupage_keychain_mcp.keychain import Cookie, SavedSession
-from edupage_keychain_mcp.tools import FullTools
+from edupage_keyring_mcp.client import SchoolSession
+from edupage_keyring_mcp.keychain import Cookie, SavedSession
+from edupage_keyring_mcp.tools import FullTools
 
 SCHOOL = 'demo-school'
 HOST = 'demo-school.edupage.org'

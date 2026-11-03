@@ -1,10 +1,10 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.stefanbackor/edupage-keychain-mcp",
-  "title": "EduPage Keychain",
+  "name": "io.github.stefanbackor/edupage-keyring-mcp",
+  "title": "EduPage Keyring",
   "description": "EduPage timetables, grades, homework and messages; session in macOS Keychain, no password.",
   "repository": {
-    "url": "https://github.com/stefanbackor/edupage-keychain-mcp",
+    "url": "https://github.com/stefanbackor/edupage-keyring-mcp",
     "source": "github"
   },
   "version": "0.1.0",
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
-      "identifier": "edupage-keychain-mcp",
+      "identifier": "edupage-keyring-mcp",
       "version": "0.1.0",
       "runtimeHint": "uvx",
       "transport": {
@@ -22,7 +22,7 @@
         {
           "type": "named",
           "name": "--school",
-          "description": "EduPage school subdomain (the part before .edupage.org). Repeat for more schools. Sign in first with `uvx edupage-keychain-mcp login <school>`.",
+          "description": "EduPage school subdomain (the part before .edupage.org). Repeat for more schools. Sign in first with `uvx edupage-keyring-mcp login <school>`.",
           "isRequired": true,
           "isRepeated": true,
           "format": "string",

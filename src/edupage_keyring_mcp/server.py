@@ -24,7 +24,7 @@ def create_server(tools: FullTools) -> 'MCPServer':
     from mcp.server.mcpserver import MCPServer
 
     from . import __version__
-    server = MCPServer('edupage-keychain-mcp', version=__version__,
+    server = MCPServer('edupage-keyring-mcp', version=__version__,
                        instructions=INSTRUCTIONS + f' Default school: {tools.primary}.')
     register_tools(server, tools)
     return server
@@ -43,7 +43,7 @@ def register_tools(server: 'MCPServer', tools: FullTools) -> None:
 
     @tool(read)
     def auth_status(school: str = '') -> dict[str, Any]:
-        """Check that the saved Keychain session still works; AUTH_REQUIRED means run `edupage-keychain-mcp login`."""
+        """Check that the saved Keychain session still works; AUTH_REQUIRED means run `edupage-keyring-mcp login`."""
         return tools.auth_status(school)
 
     @tool(read)

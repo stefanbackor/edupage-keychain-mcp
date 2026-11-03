@@ -27,7 +27,7 @@ def _schools_parser(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog='edupage-keychain-mcp',
+        prog='edupage-keyring-mcp',
         description='EduPage MCP server whose session lives in the macOS Keychain.')
     parser.add_argument('--version', action='version', version=__version__)
     sub = parser.add_subparsers(dest='command')

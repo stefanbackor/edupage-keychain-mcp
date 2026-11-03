@@ -2,9 +2,9 @@
 import pytest
 
 from conftest import HOST, LABEL, SCHOOL, FakeEdu, account_page, reply
-from edupage_keychain_mcp import signin
-from edupage_keychain_mcp.errors import EduPageError
-from edupage_keychain_mcp.keychain import Cookie, SessionStore
+from edupage_keyring_mcp import signin
+from edupage_keyring_mcp.errors import EduPageError
+from edupage_keyring_mcp.keychain import Cookie, SessionStore
 from test_keychain import MemoryKeyring
 
 

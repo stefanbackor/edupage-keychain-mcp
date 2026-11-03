@@ -7,9 +7,9 @@ import sys
 import pytest
 
 from conftest import FakeEdu, tools_for
-from edupage_keychain_mcp import __version__, cli, config
-from edupage_keychain_mcp.errors import EduPageError
-from edupage_keychain_mcp.server import create_server
+from edupage_keyring_mcp import __version__, cli, config
+from edupage_keyring_mcp.errors import EduPageError
+from edupage_keyring_mcp.server import create_server
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 WRITE_TOOLS = {'send_message', 'choose_meal', 'sign_off_meal', 'rate_meal'}
