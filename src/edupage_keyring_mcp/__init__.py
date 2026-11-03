@@ -2,4 +2,4 @@
 """EduPage MCP server whose session lives in the OS Credential Store
 (macOS Keychain or Windows Credential Manager)."""
 
-__version__ = '0.4.0'
+__version__ = '0.5.0'
