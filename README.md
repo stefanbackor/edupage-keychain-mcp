@@ -37,9 +37,12 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
 You need macOS and Google Chrome; Claude Desktop brings its own Python. The
 extension runs on your Mac like any local MCP server, with the same Keychain
-sessions. Then go on with [Ask something](#ask-something). A new version is
-installed by downloading the new file; the extension does not update itself
-from PyPI the way `uvx ...@latest` does.
+sessions. Then go on with [Ask something](#ask-something).
+
+> **Updates are manual.** The extension does not update itself. To get a new
+> version, download `edupage-keyring-mcp.mcpb` from the link above again and
+> install it over the old one. Want updates on every restart instead? Use
+> [uvx](#any-client-run-it-with-uvx).
 
 ### Any client: run it with uvx
 
@@ -142,10 +145,13 @@ several schools and account labels, written in that field.
 
 ### Updates
 
-`@latest` makes `uvx` check PyPI each time the client starts the server, so a
-new release is picked up on the next client restart. The Claude Desktop
-extension is updated by installing the new `.mcpb` from the latest release. What changed is on the
-[releases page](https://github.com/stefanbackor/edupage-keyring-mcp/releases).
+- **uvx:** `@latest` makes `uvx` check PyPI each time the client starts the
+  server, so a new release is picked up on the next client restart.
+- **Claude Desktop extension:** updated by hand only. Download the new
+  [`edupage-keyring-mcp.mcpb`](https://github.com/stefanbackor/edupage-keyring-mcp/releases/latest/download/edupage-keyring-mcp.mcpb)
+  and install it over the old one.
+
+What changed is on the [releases page](https://github.com/stefanbackor/edupage-keyring-mcp/releases).
 
 ## Signing in again
 
