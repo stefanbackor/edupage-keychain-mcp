@@ -51,7 +51,7 @@ def test_cli_stops_early_without_a_safe_environment(monkeypatch, capsys):
     monkeypatch.delenv('EDUPAGE_PASSWORD')
     monkeypatch.setattr(sys, 'platform', 'linux')
     assert cli.main(['--school', 'a']) == 1  # bare options run the server
-    assert capsys.readouterr().err.strip() == 'MACOS_REQUIRED'
+    assert capsys.readouterr().err.strip() == 'CREDENTIAL_STORE_REQUIRED'
 
 
 def test_probe_output_has_no_school_content():

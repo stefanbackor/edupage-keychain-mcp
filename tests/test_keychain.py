@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import json
-import sys
 
 import pytest
 
@@ -16,11 +15,13 @@ class MemoryKeyring:
         self.secrets, self.broken = {}, broken
 
     def set_password(self, service, account, secret):
+        if self.broken:
+            raise OSError('store locked')
         self.secrets[service, account] = secret
 
     def get_password(self, service, account):
         if self.broken:
-            raise OSError('keychain locked')
+            raise OSError('store locked')
         return self.secrets.get((service, account))
 
     def delete_password(self, service, account):
@@ -51,14 +52,21 @@ def test_one_account_per_school_needs_no_label():
     assert store.load(SCHOOL, LABEL) == SAVED and len(ring.secrets) == 2
 
 
+def test_a_failed_write_is_reported(capsys):
+    with pytest.raises(EduPageError, match='^CREDENTIAL_STORE_WRITE_FAILED$'):
+        SessionStore(MemoryKeyring(broken=True)).save(LABEL, SAVED)
+    log = capsys.readouterr().err
+    assert 'CREDENTIAL_STORE_WRITE_FAILED from OSError' in log and 'store locked' not in log
+
+
 def test_load_failures(capsys):
     with pytest.raises(EduPageError, match='^NOT_SIGNED_IN$'):
         SessionStore(MemoryKeyring()).load(SCHOOL, LABEL)
-    with pytest.raises(EduPageError, match='^KEYCHAIN_LOCKED$'):
+    with pytest.raises(EduPageError, match='^CREDENTIAL_STORE_LOCKED$'):
         SessionStore(MemoryKeyring(broken=True)).load(SCHOOL, LABEL)
     log = capsys.readouterr().err
-    assert 'KEYCHAIN_LOCKED from OSError' in log and 'in get_password' in log
-    assert 'keychain locked' not in log
+    assert 'CREDENTIAL_STORE_LOCKED from OSError' in log and 'in get_password' in log
+    assert 'store locked' not in log
     ring = MemoryKeyring()
     for secret in ['not json', json.dumps({'format': 1}), json.dumps(
             {'format': 2, 'school': 'other', 'account': 'x', 'login': 'y', 'cookies': []}),
@@ -87,19 +95,42 @@ def test_session_cookies_scope_and_expiry():
     assert session_cookies(HOST, [Cookie('lang', 'sk', '.edupage.org')]) != []
 
 
-def test_only_the_macos_keychain_backend_is_accepted(monkeypatch):
-    monkeypatch.setattr(sys, 'platform', 'linux')
-    with pytest.raises(EduPageError, match='^MACOS_REQUIRED$'):
-        keychain.require_macos_keychain()
-    monkeypatch.setattr(sys, 'platform', 'darwin')
-    for module, ok in [('keyrings.alt.file', False), ('keyring.backends.chainer', False),
-                       ('keyring.backends.macOS.api', True)]:
-        backend = type('Backend', (), {'__module__': module})()
-        if ok:
-            keychain.require_macos_keychain(backend)
-        else:
-            with pytest.raises(EduPageError, match='^MACOS_KEYCHAIN_REQUIRED$'):
-                keychain.require_macos_keychain(backend)
+def backend_from(module):
+    return type('Backend', (), {'__module__': module})()
+
+
+@pytest.mark.parametrize('platform, module', [
+    ('darwin', 'keyring.backends.macOS'), ('win32', 'keyring.backends.Windows'),
+])
+def test_the_os_credential_store_is_accepted(platform, module):
+    backend = backend_from(module)
+    store = keychain.open_credential_store(platform, backend)
+    assert isinstance(store, SessionStore) and store.backend is backend
+
+
+@pytest.mark.parametrize('platform, module', [
+    ('darwin', 'keyring.backends.Windows'), ('win32', 'keyring.backends.macOS'),
+    ('darwin', 'keyrings.alt.file'), ('win32', 'keyrings.alt.Windows'),
+    ('darwin', 'keyring.backends.chainer'), ('win32', 'keyring.backends.fail'),
+    ('darwin', 'keyring.backends.null'), ('darwin', 'keyring_pass'),
+    ('darwin', 'keyring.backends.macOSfake'), ('linux', 'keyring.backends.SecretService'),
+    ('linux', 'keyring.backends.macOS'),
+])
+def test_other_platforms_and_backends_are_refused(platform, module):
+    with pytest.raises(EduPageError, match='^CREDENTIAL_STORE_REQUIRED$'):
+        keychain.open_credential_store(platform, backend_from(module))
+
+
+def test_windows_saved_sessions_stay_on_this_machine():
+    backend = backend_from('keyring.backends.Windows')
+    keychain.open_credential_store('win32', backend)
+    assert backend.persist == 'local machine'
+
+
+def test_macos_backend_has_no_persistence_setting():
+    backend = backend_from('keyring.backends.macOS')
+    keychain.open_credential_store('darwin', backend)
+    assert not hasattr(backend, 'persist')
 
 
 def test_saved_session_is_immutable():
@@ -113,6 +144,14 @@ def test_cookies_with_the_same_name_are_kept_apart():
     ring = MemoryKeyring()
     SessionStore(ring).save(LABEL, SavedSession(SCHOOL, 'Rodic100', LABEL, pair))
     assert SessionStore(ring).load(SCHOOL, LABEL).cookies == pair
+
+
+def test_a_secret_over_2_kb_is_refused_when_saving():
+    ring = MemoryKeyring()
+    big = SavedSession(SCHOOL, 'Rodic100', LABEL, (Cookie('PHPSESSID', 'x' * 2048, HOST),))
+    with pytest.raises(EduPageError, match='^SESSION_CORRUPT$'):
+        SessionStore(ring).save(LABEL, big)
+    assert ring.secrets == {}
 
 
 def test_an_older_saved_session_with_several_cookies_still_loads():
