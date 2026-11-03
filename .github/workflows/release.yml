@@ -1,8 +1,9 @@
 name: Release
 
 # Publishing a GitHub Release (tag vX.Y.Z, notes = changelog) builds the
-# package, publishes it to PyPI and the official MCP Registry, and attaches the
-# built files to the release. Releases are made with the /release skill.
+# package and the Claude Desktop extension (.mcpb), publishes the package to
+# PyPI and the official MCP Registry, and attaches the built files to the
+# release. Releases are made with the /release skill.
 # One-time setup:
 #   1. PyPI → Your account → Publishing → add a pending trusted publisher:
 #      project edupage-keyring-mcp, owner stefanbackor, repo edupage-keyring-mcp,
@@ -30,15 +31,30 @@ jobs:
           init=$(grep -m1 '__version__' src/edupage_keyring_mcp/__init__.py | cut -d"'" -f2)
           srv=$(jq -r .version server.json)
           pkg=$(jq -r '.packages[0].version' server.json)
-          echo "tag=$tag pyproject=$py init=$init server=$srv package=$pkg"
-          test "$tag" = "$py" && test "$tag" = "$init" && test "$tag" = "$srv" && test "$tag" = "$pkg"
+          mcpb=$(jq -r .version manifest.json)
+          echo "tag=$tag pyproject=$py init=$init server=$srv package=$pkg mcpb=$mcpb"
+          test "$tag" = "$py" && test "$tag" = "$init" && test "$tag" = "$srv" && test "$tag" = "$pkg" \
+            && test "$tag" = "$mcpb"
       - run: uv sync --locked
       - run: uv run pytest -q
       - run: uv build
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      # Packed outside dist/: everything in dist/ goes to PyPI. The file name has no
+      # version, so releases/latest/download/edupage-keyring-mcp.mcpb always works.
+      - name: Pack the Claude Desktop extension
+        run: |
+          npx -y @anthropic-ai/mcpb@2.1.2 validate manifest.json
+          npx -y @anthropic-ai/mcpb@2.1.2 pack . bundle/edupage-keyring-mcp.mcpb
       - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle
+          path: bundle/
 
   pypi:
     needs: build
@@ -63,10 +79,14 @@ jobs:
         with:
           name: dist
           path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: bundle
+          path: bundle/
       - name: Attach the built files to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+        run: gh release upload "$GITHUB_REF_NAME" dist/* bundle/*.mcpb --repo "$GITHUB_REPOSITORY" --clobber
 
   mcp-registry:
     needs: pypi

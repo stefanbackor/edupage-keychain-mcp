@@ -37,7 +37,12 @@ def login_name(explicit: str | None = None, environ: Mapping[str, str] | None = 
 
 def parse_schools(values: list[str], default_username: str | None = None,
                   environ: Mapping[str, str] | None = None) -> list[tuple[str, str]]:
-    """Turn `--school name` / `--school name=login` into (school, login) pairs."""
+    """Turn `--school name` / `--school name=login` into (school, login) pairs.
+
+    A value may also list several schools separated by commas, which is how
+    the one School field of the Claude Desktop extension takes several.
+    """
+    values = [part.strip() for value in values for part in value.split(',') if part.strip()]
     if not values:
         raise EduPageError('SCHOOL_REQUIRED')
     result: list[tuple[str, str]] = []

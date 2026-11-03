@@ -23,7 +23,32 @@ Keychain**. Built on [`edupage-api`](https://github.com/EdupageAPI/edupage-api).
 
 ## Install
 
-### 1. Get the requirements
+### Claude Desktop: one-click extension
+
+1. Download
+   [`edupage-keyring-mcp.mcpb`](https://github.com/stefanbackor/edupage-keyring-mcp/releases/latest/download/edupage-keyring-mcp.mcpb)
+   from the latest release.
+2. Double-click it (or drag it onto **Settings → Extensions** in Claude
+   Desktop) and choose **Install**.
+3. Enter your **School**: the name before `.edupage.org`, or your school's
+   EduPage address. Several schools: separate them with commas
+   (`first, second`); the first is the default. Two accounts at one school:
+   `myschool=teacher` (see [Options](#options)).
+
+You need macOS and Google Chrome. Nothing else to install: when the extension
+is installed, Claude Desktop downloads its own copy of uv, which sets up Python
+and the extension's dependencies. The extension runs on your Mac like any
+local MCP server, with the same Keychain sessions. Then go on with
+[Ask something](#ask-something).
+
+> **Updates are manual.** The extension does not update itself. To get a new
+> version, download `edupage-keyring-mcp.mcpb` from the link above again and
+> install it over the old one. Want updates on every restart instead? Use
+> [uvx](#any-client-run-it-with-uvx).
+
+### Any client: run it with uvx
+
+#### 1. Get the requirements
 
 You need macOS, Google Chrome, and [uv](https://docs.astral.sh/uv/):
 
@@ -34,7 +59,7 @@ brew install uv          # or: curl -LsSf https://astral.sh/uv/install.sh | sh
 Nothing else to install: `uvx` downloads this server from PyPI and runs it in
 its own isolated environment.
 
-### 2. Connect your client
+#### 2. Connect your client
 
 Desktop apps need the full path to `uvx`; get it with `which uvx`. It is usually
 `/opt/homebrew/bin/uvx` (Homebrew) or `/Users/YOU/.local/bin/uvx` (installer
@@ -89,7 +114,7 @@ codex mcp add edupage -- uvx edupage-keyring-mcp@latest --school myschool
 **Any other client:** run `uvx edupage-keyring-mcp@latest --school myschool` as
 a stdio server.
 
-### 3. Ask something
+### Ask something
 
 Ask Claude about school, for example "What's on the timetable tomorrow?". The
 first time, Claude opens your school's EduPage in a Chrome window (Claude
@@ -99,15 +124,19 @@ macOS Keychain, and Claude answers. If macOS asks whether Python may use the
 Keychain, choose **Always Allow**.
 
 Prefer to sign in before connecting a client? Run
-`uvx edupage-keyring-mcp login myschool`.
+`uvx edupage-keyring-mcp login myschool` (this works for the Claude Desktop
+extension too: both use the same Keychain session).
 
 ### Options
 
-Add these to the `args` list (or after `--school myschool` on the command line):
+Add these to the `args` list (or after `--school myschool` on the command line).
+The Claude Desktop extension has only the School field, so of these it takes
+several schools and account labels, written in that field.
 
-- **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`.
-  The first is the default. A school without a saved session reports
-  `AUTH_REQUIRED` and does not affect the others.
+- **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`,
+  or separate them with commas: `"--school", "first,second"`. The first is
+  the default. A school without a saved session reports `AUTH_REQUIRED` and
+  does not affect the others.
 - **Two accounts at one school** (say, as a parent and as a teacher): give each
   its own label, for example `"--school", "myschool=teacher"`, and sign in to each
   once. The label only names its Keychain entry.
@@ -120,9 +149,13 @@ Add these to the `args` list (or after `--school myschool` on the command line):
 
 ### Updates
 
-`@latest` makes `uvx` check PyPI each time the client starts the server, so a
-new release is picked up on the next client restart. What changed is on the
-[releases page](https://github.com/stefanbackor/edupage-keyring-mcp/releases).
+- **uvx:** `@latest` makes `uvx` check PyPI each time the client starts the
+  server, so a new release is picked up on the next client restart.
+- **Claude Desktop extension:** updated by hand only. Download the new
+  [`edupage-keyring-mcp.mcpb`](https://github.com/stefanbackor/edupage-keyring-mcp/releases/latest/download/edupage-keyring-mcp.mcpb)
+  and install it over the old one.
+
+What changed is on the [releases page](https://github.com/stefanbackor/edupage-keyring-mcp/releases).
 
 ## Signing in again
 
@@ -146,7 +179,9 @@ edupage-keyring-mcp status --school NAME [...]
 edupage-keyring-mcp probe --school NAME [...]   # every read tool once; statuses and counts only
 ```
 
-Run each with `uvx edupage-keyring-mcp@latest ...`. `logout` removes the local
+Run each with `uvx edupage-keyring-mcp@latest ...`, also when you use the
+Claude Desktop extension: the commands work on the same Keychain sessions.
+`logout` removes the local
 session only; EduPage itself is not logged out. `probe` is handy when reporting
 a problem: its output contains no school data.
 
@@ -235,7 +270,8 @@ These are marked `destructiveHint`; clients such as Claude Desktop ask before ea
   window only when the saved session is missing or expired, at most one per
   school at a time, and returns only that command's status code. The window
   shows EduPage's real login page, so the most a misbehaving model can do is
-  open it. Turn it off with `--no-browser-signin`.
+  open it. Turn it off with `--no-browser-signin`; the Claude Desktop
+  extension has no such setting, so use the uvx install if you need it.
 - **Keychain only.** On anything but the macOS Keychain backend the server
   refuses to run, so sessions never land in a plaintext keyring file.
 - **Confined network.** `edupage-api` gets a replacement session that allows

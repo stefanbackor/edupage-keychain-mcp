@@ -27,3 +27,15 @@ jobs:
         run: uv run pytest -q
       - name: Build
         run: uv build
+
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Validate and pack the Claude Desktop extension
+        run: |
+          npx -y @anthropic-ai/mcpb@2.1.2 validate manifest.json
+          npx -y @anthropic-ai/mcpb@2.1.2 pack . bundle/edupage-keyring-mcp.mcpb
