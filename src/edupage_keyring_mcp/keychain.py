@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Saved EduPage sessions in the macOS login keychain.
+"""Saved Sessions in the Credential Store (macOS Keychain or Windows Credential Manager).
 
 A saved session is the set of EduPage cookies from one browser sign-in, plus
 the account it belongs to. There is no password field anywhere: the person
 types their password into EduPage in Chrome, never into this program.
 
-Keychain item: service `edupage-keyring-mcp`, account `<school>`, or
+Credential Store entry, the same on both platforms: service `edupage-keyring-mcp`, account `<school>`, or
 `<school>/<sha1 of label>` when a label tells several accounts at one school
 apart (and for sessions saved before labels became optional);
 secret = JSON {"format": 2, "account": ..., "login": ..., "cookies": [[name, value, domain, path, expires], ...]}.
@@ -23,21 +23,34 @@ from .errors import EduPageError, log_unexpected
 
 SERVICE = 'edupage-keyring-mcp'
 FORMAT = 2
-SECRET_LIMIT = 64 * 1024
+SECRET_LIMIT = 2 * 1024  # characters; Credential Manager holds 2560 bytes of UTF-16
 COOKIE_LIMIT = 64
 TOKEN_CHARS = frozenset('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
                         "!#$%&'*+-.^_`|~")
 
 
-def require_macos_keychain(backend: Any = None) -> None:
-    """Only the native macOS Keychain backend is acceptable (no plaintext keyrings)."""
-    if sys.platform != 'darwin':
-        raise EduPageError('MACOS_REQUIRED')
+# The OS Credential Store backend accepted on each platform (ADR 0001); nothing else.
+CREDENTIAL_STORES = {'darwin': 'keyring.backends.macOS', 'win32': 'keyring.backends.Windows'}
+
+
+def open_credential_store(platform: str | None = None, backend: Any = None) -> SessionStore:
+    """The SessionStore for this platform's Credential Store, or CREDENTIAL_STORE_REQUIRED.
+
+    Only the built-in macOS Keychain and Windows Credential Manager backends are
+    accepted: third-party plugins, file-based keyrings, chainer, fail and null are refused.
+    """
+    allowed = CREDENTIAL_STORES.get(sys.platform if platform is None else platform)
+    if allowed is None:
+        raise EduPageError('CREDENTIAL_STORE_REQUIRED')
     if backend is None:
         import keyring
         backend = keyring.get_keyring()
-    if not type(backend).__module__.startswith('keyring.backends.macOS'):
-        raise EduPageError('MACOS_KEYCHAIN_REQUIRED')
+    module = type(backend).__module__
+    if module != allowed and not module.startswith(allowed + '.'):
+        raise EduPageError('CREDENTIAL_STORE_REQUIRED')
+    if allowed == CREDENTIAL_STORES['win32']:
+        backend.persist = 'local machine'  # keyring's default, enterprise, roams with the profile
+    return SessionStore(backend)
 
 
 def account_key(school: str, label: str = '') -> str:
@@ -94,7 +107,7 @@ class SavedSession:
 
 
 class SessionStore:
-    """Keychain persistence; `backend` is anything with keyring's three functions."""
+    """Credential Store persistence; `backend` is anything with keyring's three functions."""
 
     def __init__(self, backend: Any = None) -> None:
         if backend is None:
@@ -112,15 +125,15 @@ class SessionStore:
         try:
             self.backend.set_password(SERVICE, account_key(session.school, label), secret)
         except Exception as exc:
-            log_unexpected(exc, 'KEYCHAIN_WRITE_FAILED')
-            raise EduPageError('KEYCHAIN_WRITE_FAILED') from None
+            log_unexpected(exc, 'CREDENTIAL_STORE_WRITE_FAILED')
+            raise EduPageError('CREDENTIAL_STORE_WRITE_FAILED') from None
 
     def load(self, school: str, label: str) -> SavedSession:
         try:
             secret = self.backend.get_password(SERVICE, account_key(school, label))
         except Exception as exc:
-            log_unexpected(exc, 'KEYCHAIN_LOCKED')
-            raise EduPageError('KEYCHAIN_LOCKED') from None
+            log_unexpected(exc, 'CREDENTIAL_STORE_LOCKED')
+            raise EduPageError('CREDENTIAL_STORE_LOCKED') from None
         if secret is None:
             raise EduPageError('NOT_SIGNED_IN')
         try:

@@ -12,7 +12,7 @@ from . import __version__
 from .client import SchoolSession
 from .config import login_name, parse_schools, refuse_plaintext_secrets
 from .errors import EduPageError
-from .keychain import SessionStore, require_macos_keychain
+from .keychain import SessionStore, open_credential_store
 from .net import is_edupage_host, school_name
 
 COMMANDS = ('serve', 'login', 'logout', 'status', 'probe')
@@ -29,7 +29,8 @@ def _schools_parser(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='edupage-keyring-mcp',
-        description='EduPage MCP server whose session lives in the macOS Keychain.')
+        description='EduPage MCP server whose session lives in the Credential Store '
+                    '(macOS Keychain or Windows Credential Manager).')
     parser.add_argument('--version', action='version', version=__version__)
     sub = parser.add_subparsers(dest='command')
 
@@ -41,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
                        help='Do not let the sign_in tool open Chrome; use the login command instead.')
 
     for name, text in [('login', 'Sign in to a school in Chrome and save the session.'),
-                       ('logout', 'Delete a school\'s saved session from the Keychain.')]:
+                       ('logout', 'Delete a school\'s saved session from the Credential Store.')]:
         cmd = sub.add_parser(name, help=text)
         cmd.add_argument('school', help='School name, or its EduPage address (e.g. https://myschool.edupage.org).')
         cmd.add_argument('--username', help='Only to keep two accounts at one school apart '
@@ -117,8 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         refuse_plaintext_secrets()
-        require_macos_keychain()
-        store = SessionStore()
+        store = open_credential_store()
         if args.command == 'login':
             from .signin import sign_in
             args.school = school_name(args.school)
