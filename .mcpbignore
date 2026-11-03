@@ -13,6 +13,7 @@ bundle/
 tests/
 CONTRIBUTING.md
 server.json
+glama.json
 *.har
 storage-state*.json
 .apm-local/
