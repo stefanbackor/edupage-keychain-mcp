@@ -184,8 +184,9 @@ how it goes.
 ## Signing in again
 
 A session lasts until EduPage expires it. Then Claude does the same as the
-first time: it gets `AUTH_REQUIRED`, calls `sign_in`, and a Chrome window opens
-on your school's EduPage. While you sign in, Claude waits with
+first time: it gets `AUTH_REQUIRED` and asks whether it may open the sign-in.
+If you agree, it calls `sign_in`, and a Chrome window opens on your school's
+EduPage. While you sign in, Claude waits with
 `wait_for_sign_in`, which returns as soon as you're done, and carries on with
 your question. No restart is needed, and you don't have to tell Claude you're
 done. The window waits up to 10 minutes.

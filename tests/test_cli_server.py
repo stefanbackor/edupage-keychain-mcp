@@ -81,7 +81,13 @@ def test_tools_answer_over_mcp():
     children = asyncio.run(server.call_tool('list_children', {})).structured_content
     assert children['status'] == 'READY' and len(children['children']) == 2
     stranger = asyncio.run(server.call_tool('school_year', {'school': 'elsewhere'})).structured_content
-    assert stranger['status'] == 'UNKNOWN_SCHOOL'
+    assert stranger['status'] == 'UNKNOWN_SCHOOL' and 'next' not in stranger
+    expired = create_server(tools_for(('demo-school', EduPageError('SESSION_EXPIRED'))))
+    failed = asyncio.run(expired.call_tool('school_year', {})).structured_content
+    assert failed['status'] == 'SESSION_EXPIRED' and '`edupage-keyring-mcp login demo-school`' in failed['next']
+    both = create_server(tools_for(('demo-school', FakeEdu()), ('second-school', EduPageError('NOT_SIGNED_IN'))))
+    failed = asyncio.run(both.call_tool('school_year', {'school': 'second-school'})).structured_content
+    assert 'login second-school' in failed['next']
 
 
 def test_release_metadata_agrees():
