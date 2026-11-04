@@ -33,7 +33,8 @@
         "edupage_keyring_mcp",
         "serve",
         "--school",
-        "${user_config.school}"
+        "${user_config.school}",
+        "--keep-alive=${user_config.keep_alive}"
       ]
     }
   },
@@ -43,6 +44,15 @@
       "title": "School",
       "description": "The name before .edupage.org (myschool), or your school's EduPage address. Several schools: separate them with commas; the first is the default.",
       "required": true
+    },
+    "keep_alive": {
+      "type": "number",
+      "title": "Keep-alive (minutes)",
+      "description": "EduPage signs you out after about two hours without use. Set 5-120 to have the extension load your EduPage home page that often while Claude is open, so you stay signed in. 0 turns it off.",
+      "required": false,
+      "default": 0,
+      "min": 0,
+      "max": 120
     }
   },
   "tools": [

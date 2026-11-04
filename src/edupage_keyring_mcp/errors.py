@@ -7,6 +7,9 @@ import sys
 import traceback
 from typing import Any
 
+# The Saved Session itself no longer works; retrying will not help.
+SESSION_FAILURES = frozenset({'AUTH_REQUIRED', 'ACCOUNT_MISMATCH', 'SESSION_EXPIRED'})
+
 
 class EduPageError(Exception):
     """A failure identified by a fixed, public status code."""
