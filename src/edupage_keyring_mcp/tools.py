@@ -289,6 +289,35 @@ class FullTools:
             result['signin'] = outcome
         return result
 
+    def with_next_step(self, result: dict, school: str = '') -> dict:
+        """Add a `next` step to a result whose session a fresh sign-in would fix.
+
+        The step asks the agent to get the person's consent before opening a
+        sign-in window, so no window opens unasked. `school` is the one the
+        tool was called for, if any."""
+        if 'next' in result:
+            return result
+        if result.get('status') in SIGNIN_FIXES:
+            only = self.primary if len(self.sessions) == 1 else ''
+            schools = [result.get('school') or (school if school in self.sessions else only)]
+        else:  # list_children and list_schools report each school's status
+            listed = result.get('unavailable_schools') or result.get('schools') or ()
+            schools = [s['school'] for s in listed
+                       if isinstance(s, dict) and s.get('status') in SIGNIN_FIXES]
+        if not schools:
+            return result
+        named = ', '.join(s for s in schools if s)
+        where = f'EduPage ({named})' if named else 'EduPage'
+        if self.signin is None:
+            login = f'edupage-keyring-mcp login {schools[0] or "<school>"}'
+            step = (f'The person is not signed in to {where}. Tell them to sign in by running '
+                    f'`{login}` in a terminal, then try again.')
+        else:
+            target = f'sign_in for that school ({named})' if named else 'sign_in for that school'
+            step = (f'The person is not signed in to {where}. Ask them whether to open the EduPage '
+                    f'sign-in page in Chrome. Only if they agree, call {target}, then wait_for_sign_in.')
+        return {**result, 'next': step}
+
     def user_id(self, school: str = '') -> dict:
         return self.scoped(school, lambda s, edu: {'user_id': edu.get_user_id(), 'role': s.role})
 

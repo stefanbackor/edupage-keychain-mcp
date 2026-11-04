@@ -250,3 +250,26 @@ def test_wait_for_sign_in_passes_on_a_failed_sign_in():
     tools.sign_in()
     browser.finish('SIGNIN_TIMEOUT')
     assert tools.wait_for_sign_in() == {'status': 'NOT_SIGNED_IN', 'signin': 'SIGNIN_TIMEOUT'}
+
+
+def test_session_failures_ask_before_opening_a_sign_in():
+    from conftest import school_session
+    from edupage_keyring_mcp.tools import FullTools
+    browser = Browser()
+    tools = FullTools([school_session(FakeEdu(), 'demo-school'),
+                       school_session(EduPageError('NOT_SIGNED_IN'), 'second-school')], signin=browser)
+    failed = tools.with_next_step(tools.user_id('second-school'), 'second-school')
+    assert failed['status'] == 'NOT_SIGNED_IN'
+    assert 'Ask them whether' in failed['next'] and 'Only if they agree' in failed['next']
+    assert 'sign_in for that school (second-school)' in failed['next']
+    listing = tools.with_next_step(tools.list_children())
+    assert listing['status'] == 'READY' and '(second-school)' in listing['next']
+    assert 'next' not in tools.with_next_step(tools.user_id('demo-school'))
+    assert 'next' not in tools.with_next_step(tools.user_id('elsewhere'))
+    assert browser.started == []  # asking never opens a window
+
+
+def test_without_a_browser_the_next_step_is_the_terminal_login():
+    tools = tools_for(('demo-school', EduPageError('SESSION_EXPIRED')))
+    result = tools.with_next_step(tools.user_id())
+    assert '`edupage-keyring-mcp login demo-school`' in result['next'] and 'sign_in' not in result['next']

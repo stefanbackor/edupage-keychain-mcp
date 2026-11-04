@@ -52,7 +52,7 @@
     },
     {
       "name": "sign_in",
-      "description": "Open EduPage's own sign-in page in a Chrome window on this computer when the session is missing or expired. The person types their password there; it never passes through this tool. Returns at once; then call wait_for_sign_in."
+      "description": "Open EduPage's own sign-in page in a Chrome window on this computer when the session is missing or expired. Call it only after the person agreed to sign in. The person types their password there; it never passes through this tool. Returns at once; then call wait_for_sign_in."
     },
     {
       "name": "wait_for_sign_in",

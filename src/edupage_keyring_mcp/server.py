@@ -2,6 +2,7 @@
 """MCP server wiring: tool registration and server instructions."""
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING, Any, Callable
 
 from .tools import (ABSENCE_TYPES, ASSIGNMENT_TYPES, EVENT_TYPES, HOMEWORK_TYPES, NEWS_TYPES,
@@ -21,10 +22,11 @@ INSTRUCTIONS = (
     'account: use them only for an action the person explicitly asked for. '
     'If a meal action returns MEAL_ACTIONS_UNAVAILABLE, nothing was changed: tell the '
     'person it is temporarily unavailable and to use EduPage itself. '
-    'If a tool returns AUTH_REQUIRED, SESSION_EXPIRED or NOT_SIGNED_IN, call sign_in '
-    'for that school, tell the person to sign in in the Chrome window that opens, '
-    'then call wait_for_sign_in (repeat while it returns SIGNIN_IN_PROGRESS) and '
-    'carry on with the original request once it returns READY.')
+    'If a tool returns AUTH_REQUIRED, SESSION_EXPIRED or NOT_SIGNED_IN, follow its '
+    '`next` step: ask the person whether to open the EduPage sign-in page in Chrome, and '
+    'call sign_in for that school only if they agree. Then tell them to sign in in the '
+    'Chrome window that opens, call wait_for_sign_in (repeat while it returns '
+    'SIGNIN_IN_PROGRESS) and carry on with the original request once it returns READY.')
 
 
 def create_server(tools: FullTools) -> 'MCPServer':
@@ -50,7 +52,14 @@ def register_tools(server: 'MCPServer', tools: FullTools) -> None:
                               open_world_hint=True)
 
     def tool(annotations: ToolAnnotations):
-        return server.tool(annotations=annotations, structured_output=True)
+        register = server.tool(annotations=annotations, structured_output=True)
+
+        def decorate(fn: Callable[..., dict[str, Any]]) -> Any:
+            @functools.wraps(fn)
+            def guided(*args: Any, **kwargs: Any) -> dict[str, Any]:
+                return tools.with_next_step(fn(*args, **kwargs), kwargs.get('school') or '')
+            return register(guided)
+        return decorate
 
     @tool(read)
     def auth_status(school: str = '') -> dict[str, Any]:
@@ -59,7 +68,7 @@ def register_tools(server: 'MCPServer', tools: FullTools) -> None:
 
     @tool(browser)
     def sign_in(school: str = '') -> dict[str, Any]:
-        """Open EduPage's own sign-in page in a Chrome window on this computer when the session is missing or expired. The person types their password there; it never passes through this tool. Returns at once; then call wait_for_sign_in."""
+        """Open EduPage's own sign-in page in a Chrome window on this computer when the session is missing or expired. Call it only after the person agreed to sign in. The person types their password there; it never passes through this tool. Returns at once; then call wait_for_sign_in."""
         return tools.sign_in(school)
 
     @tool(read)
