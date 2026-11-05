@@ -108,9 +108,11 @@ def test_an_unexpected_error_does_not_stop_the_keep_alive(capsys):
     second.connect()
     first.edu.session = None  # .get() raises AttributeError
     pinged = []
-    second.edu.session.get = lambda url: pinged.append(url) or (_ for _ in ()).throw(KeyError('x'))
+    second.edu.session.get = lambda url: pinged.append(url) or (_ for _ in ()).throw(KeyError('page text from EduPage'))
     KeepAlive([first, second], 60).tick()
     assert pinged == ['https://second-school.edupage.org/user/']
     err = capsys.readouterr().err
     assert 'keep-alive first-school LOCAL_ERROR' in err and 'keep-alive second-school LOCAL_ERROR' in err
+    assert 'LOCAL_ERROR from AttributeError' in err and 'LOCAL_ERROR from KeyError' in err
+    assert 'page text' not in err  # the message never reaches the log
     assert first.edu is not None and second.edu is not None

@@ -14,7 +14,7 @@ import threading
 from typing import Callable, Iterable
 
 from .client import SchoolSession, fetch_userhome
-from .errors import SESSION_FAILURES, EduPageError
+from .errors import SESSION_FAILURES, EduPageError, log_unexpected
 
 # EduPage's idle timeout can be as short as about 110 minutes.
 MIN_MINUTES, MAX_MINUTES = 5, 120
@@ -59,8 +59,9 @@ class KeepAlive:
                     fetch_userhome(session.edu, session.school)
                 except EduPageError as exc:
                     code = exc.code
-                except Exception:
+                except Exception as exc:
                     code = 'LOCAL_ERROR'
+                    log_unexpected(exc, code)  # class and frames only, as for tool calls
                 else:
                     continue
                 if code in SESSION_FAILURES:
