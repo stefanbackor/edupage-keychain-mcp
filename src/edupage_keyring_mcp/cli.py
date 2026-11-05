@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from contextlib import nullcontext
 from datetime import date, timedelta
 from typing import Any
 
@@ -43,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
                        help='Do not let the sign_in tool open Chrome; use the login command instead.')
     serve.add_argument('--keep-alive', default='', metavar='MINUTES',
                        help=f'Load each open school\'s home page every MINUTES '
-                            f'({MIN_MINUTES}-{MAX_MINUTES}) so EduPage does not end an idle session. '
+                            f'({MIN_MINUTES}-{MAX_MINUTES}; smaller values count as {MIN_MINUTES}) so EduPage does not end an idle session. '
                             f'Default {DEFAULT_MINUTES}; 0 turns it off.')
 
     for name, text in [('login', 'Sign in to a school in Chrome and save the session.'),
@@ -155,14 +156,8 @@ def main(argv: list[str] | None = None) -> int:
             from .tools import FullTools
             tools = FullTools(_sessions(args, store), set(args.download_host),
                               None if args.no_browser_signin else BrowserSignIn())
-            keeper = KeepAlive(tools.sessions.values(), minutes) if minutes else None
-            if keeper:
-                keeper.start()
-            try:
+            with KeepAlive(tools.sessions.values(), minutes) if minutes else nullcontext():
                 create_server(tools).run()
-            finally:
-                if keeper:
-                    keeper.stop()
         return 0
     except EduPageError as exc:
         _print({'status': exc.code, **exc.extra}) if args.command != 'serve' else None

@@ -142,7 +142,8 @@ def test_keep_alive_can_be_turned_off(monkeypatch, flags):
     assert seen == {'threads': [], 'exit': 0}
 
 
-@pytest.mark.parametrize('flags', [(), ('--keep-alive', ''), ('--keep-alive=60',), ('--keep-alive=60.0',)])
+@pytest.mark.parametrize('flags', [(), ('--keep-alive', ''), ('--keep-alive=60',), ('--keep-alive=60.0',),
+                                   ('--keep-alive=3',), ('--keep-alive=${user_config.keep_alive}',)])
 def test_keep_alive_runs_in_a_daemon_thread_until_the_server_stops(monkeypatch, flags):
     seen = serve_with(monkeypatch, *flags)  # on by default
     assert seen['exit'] == 0 and len(seen['threads']) == 1 and seen['threads'][0].daemon
@@ -150,7 +151,7 @@ def test_keep_alive_runs_in_a_daemon_thread_until_the_server_stops(monkeypatch, 
     assert not seen['threads'][0].is_alive()
 
 
-@pytest.mark.parametrize('value', ['4', '121', '-5', 'hourly', '7.5', '4.0', '.', '1e2'])
+@pytest.mark.parametrize('value', ['121', '-5', 'hourly', '7.5', '.', '1e2', '120.5'])
 def test_keep_alive_out_of_range_is_refused_at_startup(monkeypatch, capsys, value):
     seen = serve_with(monkeypatch, f'--keep-alive={value}')
     assert seen == {'exit': 1}
@@ -167,3 +168,10 @@ def test_bundle_keep_alive_setting_reaches_serve(monkeypatch):
     seen = serve_with(monkeypatch, *flags)
     assert seen['exit'] == 0 and len(seen['threads']) == 1
     seen['threads'][0].join(5)
+
+
+@pytest.mark.parametrize('value, minutes', [('', 60), ('${user_config.keep_alive}', 60), ('0', 0), ('0.0', 0),
+                                            ('1', 5), ('4.0', 5), ('5', 5), ('90', 90), ('120', 120)])
+def test_keep_alive_minutes(value, minutes):
+    from edupage_keyring_mcp.keepalive import keep_alive_minutes
+    assert keep_alive_minutes(value) == minutes

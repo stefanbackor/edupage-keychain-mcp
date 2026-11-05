@@ -154,7 +154,7 @@ and the keep-alive.
 - **Keep-alive (on by default):** EduPage signs a session out after about 2
   hours (sometimes under 2) without use. So every 60 minutes the server loads
   the EduPage home page of each school it has already used. Change the interval
-  with `"--keep-alive", "90"` (5 to 120), or turn it off with
+  with `"--keep-alive", "90"` (5 to 120; smaller values count as 5), or turn it off with
   `"--keep-alive", "0"`. It never opens a school you haven't used since the
   client started and never opens a sign-in window. If EduPage has ended the
   session anyway, the server stops for that school until you next use it, and
