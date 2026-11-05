@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Opt-in keep-alive: load `/user/` now and then so EduPage doesn't end an idle session.
+"""Keep-alive: load `/user/` now and then so EduPage doesn't end an idle session.
 
 EduPage signs a session out after about 110-180 minutes without requests. While
-the server runs, this loads each open school's home page once per interval. It
+the server runs, this loads each open school's home page once per interval (every
+DEFAULT_MINUTES unless `--keep-alive` says otherwise; 0 turns it off). It
 never opens a session that isn't open yet, so it never reads the Credential Store
 and never starts a sign-in.
 """
@@ -17,17 +18,19 @@ from .errors import SESSION_FAILURES, EduPageError
 
 # EduPage's idle timeout can be as short as about 110 minutes.
 MIN_MINUTES, MAX_MINUTES = 5, 120
+# On by default: an overnight run at this interval kept a session alive for 19 hours.
+DEFAULT_MINUTES = 60
 
 
 def keep_alive_minutes(value: str | None) -> int:
-    """The `--keep-alive` value as whole minutes; 0 (off) when empty.
+    """The `--keep-alive` value as whole minutes; DEFAULT_MINUTES when empty, 0 for off.
 
     Raises:
         EduPageError: INVALID_KEEP_ALIVE unless it is 0 or MIN_MINUTES..MAX_MINUTES.
     """
     text = (value or '').strip()
     if not text:
-        return 0
+        return DEFAULT_MINUTES
     whole, _, fraction = text.partition('.')  # the .mcpb number field may arrive as "60.0"
     if not whole.isdigit() or fraction.strip('0'):
         raise EduPageError('INVALID_KEEP_ALIVE', minimum=MIN_MINUTES, maximum=MAX_MINUTES)

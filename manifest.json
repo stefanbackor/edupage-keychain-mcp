@@ -48,9 +48,9 @@
     "keep_alive": {
       "type": "number",
       "title": "Keep-alive (minutes)",
-      "description": "EduPage signs you out after about two hours without use. Set 5-120 to have the extension load your EduPage home page that often while Claude is open, so you stay signed in. 0 turns it off.",
+      "description": "EduPage signs you out after about two hours without use. While Claude is open, the extension loads your EduPage home page this often (5-120 minutes, default 60) so you stay signed in. 0 turns it off.",
       "required": false,
-      "default": 0,
+      "default": 60,
       "min": 0,
       "max": 120
     }

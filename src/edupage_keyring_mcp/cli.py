@@ -13,7 +13,7 @@ from .client import SchoolSession
 from .config import login_name, parse_schools, refuse_plaintext_secrets
 from .errors import EduPageError
 from .credential_store import SessionStore, open_credential_store
-from .keepalive import MAX_MINUTES, MIN_MINUTES, KeepAlive, keep_alive_minutes
+from .keepalive import DEFAULT_MINUTES, MAX_MINUTES, MIN_MINUTES, KeepAlive, keep_alive_minutes
 from .net import is_edupage_host, school_name
 
 COMMANDS = ('serve', 'login', 'logout', 'status', 'probe')
@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument('--keep-alive', default='', metavar='MINUTES',
                        help=f'Load each open school\'s home page every MINUTES '
                             f'({MIN_MINUTES}-{MAX_MINUTES}) so EduPage does not end an idle session. '
-                            'Default 0: off.')
+                            f'Default {DEFAULT_MINUTES}; 0 turns it off.')
 
     for name, text in [('login', 'Sign in to a school in Chrome and save the session.'),
                        ('logout', 'Delete a school\'s saved session from the Credential Store.')]:

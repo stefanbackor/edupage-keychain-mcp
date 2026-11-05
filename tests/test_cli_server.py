@@ -136,15 +136,15 @@ def serve_with(monkeypatch, *flags):
     return seen
 
 
-@pytest.mark.parametrize('flags', [(), ('--keep-alive', '0'), ('--keep-alive', ''), ('--keep-alive=0.0',)])
-def test_no_keep_alive_unless_asked(monkeypatch, flags):
+@pytest.mark.parametrize('flags', [('--keep-alive', '0'), ('--keep-alive=0.0',)])
+def test_keep_alive_can_be_turned_off(monkeypatch, flags):
     seen = serve_with(monkeypatch, *flags)
     assert seen == {'threads': [], 'exit': 0}
 
 
-@pytest.mark.parametrize('value', ['60', '60.0'])
-def test_keep_alive_runs_in_a_daemon_thread_until_the_server_stops(monkeypatch, value):
-    seen = serve_with(monkeypatch, f'--keep-alive={value}')
+@pytest.mark.parametrize('flags', [(), ('--keep-alive', ''), ('--keep-alive=60',), ('--keep-alive=60.0',)])
+def test_keep_alive_runs_in_a_daemon_thread_until_the_server_stops(monkeypatch, flags):
+    seen = serve_with(monkeypatch, *flags)  # on by default
     assert seen['exit'] == 0 and len(seen['threads']) == 1 and seen['threads'][0].daemon
     seen['threads'][0].join(5)
     assert not seen['threads'][0].is_alive()
@@ -160,8 +160,10 @@ def test_keep_alive_out_of_range_is_refused_at_startup(monkeypatch, capsys, valu
 def test_bundle_keep_alive_setting_reaches_serve(monkeypatch):
     bundle = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
     setting = bundle['user_config']['keep_alive']
-    assert (setting['default'], setting['max']) == (0, 120)
+    assert (setting['default'], setting['min'], setting['max']) == (60, 0, 120)
     args = bundle['server']['mcp_config']['args']
     flags = [a.replace('${user_config.keep_alive}', str(setting['default'])) for a in args if 'keep_alive' in a]
-    assert flags == ['--keep-alive=0']
-    assert serve_with(monkeypatch, *flags) == {'threads': [], 'exit': 0}
+    assert flags == ['--keep-alive=60']
+    seen = serve_with(monkeypatch, *flags)
+    assert seen['exit'] == 0 and len(seen['threads']) == 1
+    seen['threads'][0].join(5)
