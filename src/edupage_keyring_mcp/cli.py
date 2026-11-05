@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from contextlib import nullcontext
 from datetime import date, timedelta
 from typing import Any
 
@@ -13,6 +14,7 @@ from .client import SchoolSession
 from .config import login_name, parse_schools, refuse_plaintext_secrets
 from .errors import EduPageError
 from .credential_store import SessionStore, open_credential_store
+from .keepalive import DEFAULT_MINUTES, MAX_MINUTES, MIN_MINUTES, KeepAlive, keep_alive_minutes
 from .net import is_edupage_host, school_name
 
 COMMANDS = ('serve', 'login', 'logout', 'status', 'probe')
@@ -40,6 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
                        help='Extra *.edupage.org host allowed for attachment downloads.')
     serve.add_argument('--no-browser-signin', action='store_true',
                        help='Do not let the sign_in tool open Chrome; use the login command instead.')
+    serve.add_argument('--keep-alive', default='', metavar='MINUTES',
+                       help=f'Load each open school\'s home page every MINUTES '
+                            f'({MIN_MINUTES}-{MAX_MINUTES}; smaller values count as {MIN_MINUTES}) so EduPage does not end an idle session. '
+                            f'Default {DEFAULT_MINUTES}; 0 turns it off.')
 
     for name, text in [('login', 'Sign in to a school in Chrome and save the session.'),
                        ('logout', 'Delete a school\'s saved session from the Credential Store.')]:
@@ -117,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         argv.insert(0, 'serve')
     args = build_parser().parse_args(argv)
     try:
+        minutes = keep_alive_minutes(args.keep_alive) if args.command == 'serve' else 0
         refuse_plaintext_secrets()
         store = open_credential_store()
         if args.command == 'login':
@@ -149,7 +156,8 @@ def main(argv: list[str] | None = None) -> int:
             from .tools import FullTools
             tools = FullTools(_sessions(args, store), set(args.download_host),
                               None if args.no_browser_signin else BrowserSignIn())
-            create_server(tools).run()
+            with KeepAlive(tools.sessions.values(), minutes) if minutes else nullcontext():
+                create_server(tools).run()
         return 0
     except EduPageError as exc:
         _print({'status': exc.code, **exc.extra}) if args.command != 'serve' else None

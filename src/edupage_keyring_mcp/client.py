@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 import requests
 
-from .errors import EduPageError
+from .errors import SESSION_FAILURES, EduPageError, log_unexpected
 from .credential_store import SavedSession, session_cookies
 from .net import SchoolHttp, school_host
 
@@ -125,6 +125,29 @@ class SchoolSession:
             raise EduPageError('ACCOUNT_MISMATCH')
         self.saved, self.edu = saved, edu
         return edu
+
+    def keep_alive(self) -> str | None:
+        """Load `/user/` if this session is open, so EduPage doesn't end it for inactivity.
+
+        Returns READY, the failure code, or None when the session isn't open. Never
+        opens one: no Credential Store read, no sign-in. A session failure drops the
+        session until a tool call connects it again.
+        """
+        with self.lock:
+            if self.edu is None:
+                return None
+            try:
+                fetch_userhome(self.edu, self.school)
+            except EduPageError as exc:
+                code = exc.code
+            except Exception as exc:
+                code = 'LOCAL_ERROR'
+                log_unexpected(exc, code)  # class and frames only, as for tool calls
+            else:
+                return 'READY'
+            if code in SESSION_FAILURES:
+                self.reset()
+            return code
 
     def reset(self) -> None:
         if self.edu is not None:

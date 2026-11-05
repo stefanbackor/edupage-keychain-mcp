@@ -3,6 +3,7 @@ import asyncio
 import json
 import pathlib
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -118,3 +119,59 @@ def test_bundle_manifest_lists_every_tool():
 def test_every_source_file_carries_the_license_tag():
     for path in [*ROOT.glob('src/**/*.py'), *ROOT.glob('tests/*.py')]:
         assert path.read_text(encoding='utf-8').startswith('# SPDX-License-Identifier: GPL-3.0-or-later'), path
+
+
+def serve_with(monkeypatch, *flags):
+    """Run `serve` up to the point the MCP server would take over stdio; return the live threads then."""
+    import threading
+    from edupage_keyring_mcp import server
+    seen = {}
+
+    class Server:
+        def run(self):
+            seen['threads'] = [t for t in threading.enumerate() if t.name == 'edupage-keep-alive']
+    monkeypatch.setattr(cli, 'open_credential_store', lambda: SimpleNamespace(load=None))
+    monkeypatch.setattr(server, 'create_server', lambda tools: Server())
+    seen['exit'] = cli.main(['serve', '--school', 'demo-school', *flags])
+    return seen
+
+
+@pytest.mark.parametrize('flags', [('--keep-alive', '0'), ('--keep-alive=0.0',)])
+def test_keep_alive_can_be_turned_off(monkeypatch, flags):
+    seen = serve_with(monkeypatch, *flags)
+    assert seen == {'threads': [], 'exit': 0}
+
+
+@pytest.mark.parametrize('flags', [(), ('--keep-alive', ''), ('--keep-alive=60',), ('--keep-alive=60.0',),
+                                   ('--keep-alive=3',), ('--keep-alive=${user_config.keep_alive}',)])
+def test_keep_alive_runs_in_a_daemon_thread_until_the_server_stops(monkeypatch, flags):
+    seen = serve_with(monkeypatch, *flags)  # on by default
+    assert seen['exit'] == 0 and len(seen['threads']) == 1 and seen['threads'][0].daemon
+    seen['threads'][0].join(5)
+    assert not seen['threads'][0].is_alive()
+
+
+@pytest.mark.parametrize('value', ['121', '-5', 'hourly', '7.5', '.', '1e2', '120.5'])
+def test_keep_alive_out_of_range_is_refused_at_startup(monkeypatch, capsys, value):
+    seen = serve_with(monkeypatch, f'--keep-alive={value}')
+    assert seen == {'exit': 1}
+    assert capsys.readouterr().err.strip() == 'INVALID_KEEP_ALIVE'
+
+
+def test_bundle_keep_alive_setting_reaches_serve(monkeypatch):
+    bundle = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
+    setting = bundle['user_config']['keep_alive']
+    assert (setting['default'], setting['min'], setting['max']) == (60, 0, 120)
+    args = bundle['server']['mcp_config']['args']
+    flags = [a.replace('${user_config.keep_alive}', str(setting['default'])) for a in args if 'keep_alive' in a]
+    assert flags == ['--keep-alive=60']
+    seen = serve_with(monkeypatch, *flags)
+    assert seen['exit'] == 0 and len(seen['threads']) == 1
+    seen['threads'][0].join(5)
+
+
+@pytest.mark.parametrize('value, minutes', [('', 60), ('${user_config.keep_alive}', 60), ('0', 0), ('0.0', 0),
+                                            ('1', 5), ('4.0', 5), ('5', 5), ('90', 90), ('120', 120)])
+def test_keep_alive_minutes(value, minutes):
+    from edupage_keyring_mcp.keepalive import keep_alive_minutes
+    assert keep_alive_minutes(value) == minutes

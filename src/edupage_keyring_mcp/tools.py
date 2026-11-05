@@ -17,7 +17,7 @@ from .client import SchoolSession, _fold
 from .data import (MAX_TIMELINE_DAYS, _name, event_data, grade_data, lesson_data,
                    missing_teacher_names, parse_day, parse_since, plain, recipient_matches,
                    tolerant_grades)
-from .errors import EduPageError, log_unexpected
+from .errors import SESSION_FAILURES, EduPageError, log_unexpected
 from .net import SchoolHttp, is_edupage_host
 
 MAX_MESSAGE_CHARS = 5000
@@ -40,7 +40,6 @@ EVENT_TYPES = {'event', 'schoolevent', 'excursion', 'trip', 'parentsevening', 'm
                'culture', 'freeday', 'holiday', 'sholiday'}
 NEWS_TYPES = {'news'}
 MESSAGE_TYPES = {'sprava'}
-SESSION_FAILURES = frozenset({'AUTH_REQUIRED', 'ACCOUNT_MISMATCH', 'SESSION_EXPIRED'})
 # Statuses a fresh browser sign-in can fix.
 SIGNIN_FIXES = SESSION_FAILURES | {'NOT_SIGNED_IN', 'SESSION_CORRUPT'}
 MAX_SIGNIN_WAIT = 50  # seconds per call; stays under common MCP client request timeouts

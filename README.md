@@ -137,8 +137,9 @@ extension too: both use the same Saved Session).
 ### Options
 
 Add these to the `args` list (or after `--school myschool` on the command line).
-The Claude Desktop extension has only the School field, so of these it takes
-several schools and account labels, written in that field.
+The Claude Desktop extension has only the School and Keep-alive fields, so of
+these it takes several schools and account labels, written in the School field,
+and the keep-alive.
 
 - **Several schools:** repeat `--school`: `"--school", "first", "--school", "second"`,
   or separate them with commas: `"--school", "first,second"`. The first is
@@ -150,6 +151,17 @@ several schools and account labels, written in that field.
 - **No sign-in windows from the server:** `"--no-browser-signin"`. `sign_in`
   then reports `SIGNIN_UNAVAILABLE`, and you sign in with `login` in a terminal
   (see [Command line](#command-line)).
+- **Keep-alive (on by default):** EduPage signs a session out after about 2
+  hours (sometimes under 2) without use. So every 60 minutes the server loads
+  the EduPage home page of each school it has already used. Change the interval
+  with `"--keep-alive", "90"` (5 to 120; smaller values count as 5), or turn it off with
+  `"--keep-alive", "0"`. It never opens a school you haven't used since the
+  client started and never opens a sign-in window. If EduPage has ended the
+  session anyway, the server stops for that school until you next use it, and
+  the server log gets one line with the school and status code. It only runs
+  while the client is open and the computer is awake: after a night asleep you
+  may still need to sign in again. In the Claude Desktop extension, this is the
+  **Keep-alive (minutes)** field.
 - **Attachments on EduPage file servers:** if `get_attachment` reports
   `REDIRECT_NOT_ALLOWED`, allow that exact host with
   `"--download-host", "cloud-4.edupage.org"`. Only `*.edupage.org` hosts are accepted.
@@ -183,7 +195,9 @@ how it goes.
 
 ## Signing in again
 
-A session lasts until EduPage expires it. Then Claude does the same as the
+A session lasts until EduPage expires it, which it does after about 2 hours
+without use. While your client is open, the [keep-alive](#options) prevents
+that. Once it has expired anyway (say, after the computer slept), Claude does the same as the
 first time: it gets `AUTH_REQUIRED` and asks whether it may open the sign-in.
 If you agree, it calls `sign_in`, and a Chrome window opens on your school's
 EduPage. While you sign in, Claude waits with
@@ -198,6 +212,7 @@ session you saved then, or remove it and sign in once more.
 
 ```text
 edupage-keyring-mcp [serve] --school NAME[=LOGIN] [--school ...] [--download-host HOST] [--no-browser-signin]
+                    [--keep-alive MINUTES]
 edupage-keyring-mcp login NAME [--username LOGIN] [--timeout SECONDS]
 edupage-keyring-mcp logout NAME [--username LOGIN]
 edupage-keyring-mcp status --school NAME [...]
